@@ -28,6 +28,8 @@ type RevisionInfo struct {
 	Message     string
 	Tags        []string
 	Branch      string
+
+	Extra map[string]interface{}
 }
 
 type ScmParser interface {
@@ -89,6 +91,10 @@ func (ri RevisionInfo) toMap() map[string]interface{} {
 
 	payload["commit_date"] = ri.CommitDate.Format(time.UnixDate)
 	payload["commit_timestamp"] = ri.CommitDate.Unix()
+
+	for idx, val := range ri.Extra {
+		payload[idx] = val
+	}
 
 	return payload
 }

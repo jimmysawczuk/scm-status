@@ -30,7 +30,7 @@ func (p *GitParser) Parse() RevisionInfo {
 		tags = strings.Split(tags_joined, "\n")	
 	}
 	
-	meta_joined := runCommand("git", "log -1 --pretty=format:%h%n%h%n%H%n%ci%n%an%n%ae", "")
+	meta_joined := runCommand("git", "log -1 --pretty=format:%h%n%h%n%H%n%ci%n%an%n%ae%n%p%n%P%n%s", "")
 	meta := strings.Split(meta_joined, "\n")
 
 	commit_message_raw := runCommand("git", "log -1 --pretty=format:%B", "")
@@ -48,6 +48,25 @@ func (p *GitParser) Parse() RevisionInfo {
 	rev.AuthorEmail = meta[5]
 
 	rev.CommitDate, _ = time.Parse("2006-01-02 15:04:05 -0700", meta[3])
+
+	rev.Extra = make(map[string]interface{})
+
+	short_parents := strings.Split(strings.TrimSpace(meta[6]), " ")
+	long_parents := strings.Split(strings.TrimSpace(meta[7]), " ")
+
+	subject := strings.TrimSpace(meta[8])
+
+	parents := make([]map[string]interface{}, 0)
+	var parent map[string]interface{}
+	for i, _ := range(short_parents) {
+		parent = make(map[string]interface{})
+		parent["short"] = short_parents[i]
+		parent["full"] = long_parents[i]
+		parents = append(parents, parent)
+	}
+
+	rev.Extra["parents"] = parents
+	rev.Extra["subject"] = subject
 
 	return rev
 
