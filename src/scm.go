@@ -34,38 +34,57 @@ type RevisionInfo struct {
 
 type ScmParser interface {
 	Parse() RevisionInfo
+	Setup()
+	Dir() string
 }
 
 func Write(scm ScmParser) {
 	fmt.Println("got here")
 }
 
-func GetParser(dir string) (ScmParser, error) {
+func resolveDir(dir string) (fq_dir string, err error) {
+	os.Chdir(dir)
 
-	err := os.Chdir(dir)
+	fq_dir, err = os.Getwd()
 
 	if err != nil {
-		return nil, fmt.Errorf("Can't access %s; do you have execute permissions?\n", dir)
+		fmt.Errorf("Can't resolve working directory %s; do you have execute permissions?\n", dir)
+		return "", err
 	}
+
+	return fq_dir, nil
+}
+
+func GetParser(dir string) (ScmParser, error) {
+
+	dir, err := resolveDir(dir)
+
+	err = os.Chdir(dir)
 
 	err = os.Chdir(".git")
 	if err == nil {
-		g := NewGitParser()
+		g := NewGitParser(dir)
+		os.Chdir(dir)
 		return g, nil
 	}
 
 	return nil, nil
 }
 
-func runCommand(exe string, args string, dir string) string {
+func runCommand(exe string, args string, dir string) (string, error) {
 	parts := strings.Split(args, " ")
 	cmd := exec.Command(exe, parts...) // "git", "branch", "--contains", "HEAD")
 
-	output, _ := cmd.Output()
+	output, err := cmd.Output()
+
+	if err != nil {
+		fmt.Errorf("%s", err)
+		return "", err
+	}
 
 	str := bytes.NewBuffer(output).String()
 
-	return str
+	return str, nil
 }
 
 func (ri RevisionInfo) toMap() map[string]interface{} {
