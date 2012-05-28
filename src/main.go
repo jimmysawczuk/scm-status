@@ -62,7 +62,7 @@ func parse_revision(dir string) {
 
 		filename := flag.Lookup("out").Value.String()
 
-		fp, err := os.OpenFile(scm.Dir()+"/"+filename, os.O_RDWR+os.O_CREATE, 0666)
+		fp, err := os.OpenFile(scm.Dir()+"/"+filename, os.O_RDWR+os.O_CREATE+os.O_TRUNC, 0666)
 
 		if err == nil {
 			fp.Write(json)
