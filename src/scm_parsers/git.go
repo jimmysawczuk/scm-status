@@ -1,8 +1,8 @@
 package scm
 
 import (
+	"errors"
 	"flag"
-	//	"fmt"
 	"os"
 	"strings"
 	"time"
@@ -13,13 +13,23 @@ type GitParser struct {
 	Type ScmType
 }
 
-func NewGitParser(fq_dir string) *GitParser {
+func NewGitParser(fq_dir string) (*GitParser, error) {
+	err := os.Chdir(fq_dir)
+	if err != nil {
+		return nil, errors.New("Not a valid directory")
+	}
+
+	err = os.Chdir(".git")
+	if err != nil {
+		return nil, errors.New("Not a git repository")
+	}
+
 	g := new(GitParser)
 
 	g.dir = fq_dir
 	g.Type = Git
 
-	return g
+	return g, nil
 }
 
 func (p *GitParser) Parse() RevisionInfo {

@@ -1,7 +1,7 @@
 default:
-	@gofmt -w src/*.go src/scm_managers/*.go
+	@gofmt -w src/*.go src/scm_parsers/*.go
 	
-	@go tool 6g -o bin/scm.6 src/scm.go src/scm_managers/*.go
+	@go tool 6g -o bin/scm.6 src/scm.go src/scm_parsers/*.go
 	
 	@go tool 6g -o bin/main.6 src/main.go
 	

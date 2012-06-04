@@ -18,7 +18,7 @@ Right now, scm-status supports **Git** on **POSIX** systems. I'm working on addi
 
 ## Using
 
-* Simply read the `REVISION` file, parse it as JSON, and use whatever you need!
+* Simply read the `REVISION.json` file, parse it as JSON, and use whatever you need!
 
 ## License
 

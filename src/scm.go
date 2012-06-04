@@ -3,6 +3,7 @@ package scm
 import (
 	"bytes"
 	"encoding/json"
+	"flag"
 	"fmt"
 	"os"
 	"os/exec"
@@ -38,8 +39,12 @@ type ScmParser interface {
 	Dir() string
 }
 
-func Write(scm ScmParser) {
-	fmt.Println("got here")
+func ParseAndWrite(scm ScmParser) {
+	result := scm.Parse()
+
+	filename := flag.Lookup("out").Value.String()
+
+	result.Write(scm.Dir() + "/" + filename)
 }
 
 func resolveDir(dir string) (fq_dir string, err error) {
@@ -58,13 +63,12 @@ func resolveDir(dir string) (fq_dir string, err error) {
 func GetParser(dir string) (ScmParser, error) {
 
 	dir, err := resolveDir(dir)
+	if err != nil {
+		return nil, nil
+	}
 
-	err = os.Chdir(dir)
-
-	err = os.Chdir(".git")
-	if err == nil {
-		g := NewGitParser(dir)
-		os.Chdir(dir)
+	g, err := NewGitParser(dir)
+	if g != nil {
 		return g, nil
 	}
 
@@ -73,7 +77,7 @@ func GetParser(dir string) (ScmParser, error) {
 
 func runCommand(exe string, args string, dir string) (string, error) {
 	parts := strings.Split(args, " ")
-	cmd := exec.Command(exe, parts...) // "git", "branch", "--contains", "HEAD")
+	cmd := exec.Command(exe, parts...)
 
 	output, err := cmd.Output()
 
@@ -122,4 +126,19 @@ func (ri RevisionInfo) ToJSON() ([]byte, error) {
 	ri_map := ri.toMap()
 
 	return json.Marshal(ri_map)
+}
+
+func (ri RevisionInfo) Write(filepath string) {
+	json, _ := ri.ToJSON()
+
+	fp, err := os.OpenFile(filepath, os.O_RDWR+os.O_CREATE+os.O_TRUNC, 0666)
+
+	if err == nil {
+		fp.Write(json)
+
+		fp.Close()
+
+	} else {
+		fmt.Errorf("%s\n", err)
+	}
 }

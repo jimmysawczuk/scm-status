@@ -14,7 +14,7 @@ func main() {
 }
 
 func setupFlags() {
-	flag.String("out", "REVISION", "File in which to (over)write the revision info into")
+	flag.String("out", "REVISION.json", "File in which to (over)write the revision info into")
 	flag.String("executable", "/usr/local/bin/scm-status", "Path at which this program can be executed (for hooks)")
 }
 
@@ -48,44 +48,27 @@ func getScmParser(dir string) (parser scm.ScmParser, err error) {
 
 func parse_revision(dir string) {
 
-	scm, err := getScmParser(dir)
+	parser, err := getScmParser(dir)
 
 	if err != nil {
 		fmt.Errorf("%s", err)
 		return
 	}
 
-	if scm != nil {
-		result := scm.Parse()
-
-		json, _ := result.ToJSON()
-
-		filename := flag.Lookup("out").Value.String()
-
-		fp, err := os.OpenFile(scm.Dir()+"/"+filename, os.O_RDWR+os.O_CREATE+os.O_TRUNC, 0666)
-
-		if err == nil {
-			fp.Write(json)
-
-			fp.Close()
-
-		} else {
-
-			fmt.Errorf("%s\n", err)
-
-		}
+	if parser != nil {
+		scm.ParseAndWrite(parser)
 	}
 }
 
 func setup(dir string) {
-	scm, err := getScmParser(".")
+	parser, err := getScmParser(".")
 
 	if err != nil {
 		fmt.Errorf("%s", err)
 		return
 	}
 
-	if scm != nil {
-		scm.Setup()
+	if parser != nil {
+		parser.Setup()
 	}
 }
