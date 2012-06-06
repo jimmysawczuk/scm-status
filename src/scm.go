@@ -72,6 +72,11 @@ func GetParser(dir string) (ScmParser, error) {
 		return g, nil
 	}
 
+	h, err := NewHgParser(dir)
+	if h != nil {
+		return h, nil
+	}
+
 	return nil, nil
 }
 

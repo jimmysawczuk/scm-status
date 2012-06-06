@@ -4,7 +4,7 @@
 
 ## Support
 
-Right now, scm-status supports **Git** on **POSIX** systems. I'm working on adding support for more SCMs.
+Right now, scm-status supports **Git** and **Mercurial (hg)** on **POSIX** systems.
 
 ## Building
 
