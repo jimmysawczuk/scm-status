@@ -14,7 +14,7 @@ func main() {
 }
 
 func setupFlags() {
-	flag.String("out", "REVISION.json", "File in which to (over)write the revision info into")
+	flag.String("out", "<STDOUT>", "File in which to (over)write the revision info into (defaults to stdout)")
 	flag.String("executable", "/usr/local/bin/scm-status", "Path at which this program can be executed (for hooks)")
 }
 

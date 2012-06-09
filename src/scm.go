@@ -44,7 +44,12 @@ func ParseAndWrite(scm ScmParser) {
 
 	filename := flag.Lookup("out").Value.String()
 
-	result.Write(scm.Dir() + "/" + filename)
+	if filename == "<STDOUT>" {
+		result.WriteToStdout()
+	} else {
+		result.Write(scm.Dir() + "/" + filename)
+	}
+
 }
 
 func resolveDir(dir string) (fq_dir string, err error) {
@@ -146,4 +151,10 @@ func (ri RevisionInfo) Write(filepath string) {
 	} else {
 		fmt.Errorf("%s\n", err)
 	}
+}
+
+func (ri RevisionInfo) WriteToStdout() {
+	json, _ := ri.ToJSON()
+
+	fmt.Println(bytes.NewBuffer(json).String())
 }
