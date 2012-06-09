@@ -29,6 +29,8 @@ func NewHgParser(fq_dir string) (*HgParser, error) {
 	h.dir = fq_dir
 	h.Type = Git
 
+	os.Chdir(fq_dir)
+
 	return h, nil
 }
 
@@ -68,8 +70,13 @@ func (p *HgParser) Parse() RevisionInfo {
 func (p *HgParser) Setup() {
 
 	executable := flag.Lookup("executable").Value.String()
+	out := flag.Lookup("out").Value.String()
 
-	hook := executable + "; # scm-status hook\r\n"
+	if out == "<STDOUT>" {
+		out = "REVISION.json"
+	}
+
+	hook := executable + " -out=\"" + out + "\"; # scm-status hook\r\n"
 
 	full_hooks := "\r\n\r\n" + "[hooks]\r\n"
 	full_hooks += "post-update = " + hook

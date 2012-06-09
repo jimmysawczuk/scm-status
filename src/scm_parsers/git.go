@@ -29,6 +29,8 @@ func NewGitParser(fq_dir string) (*GitParser, error) {
 	g.dir = fq_dir
 	g.Type = Git
 
+	os.Chdir(fq_dir)
+
 	return g, nil
 }
 
@@ -90,8 +92,13 @@ func (p *GitParser) Parse() RevisionInfo {
 
 func (p *GitParser) Setup() {
 	executable := flag.Lookup("executable").Value.String()
+	out := flag.Lookup("out").Value.String()
 
-	hook := executable + "; # scm-status hook\r\n"
+	if out == "<STDOUT>" {
+		out = "REVISION.json"
+	}
+
+	hook := executable + " -out=\"" + out + "\"; # scm-status hook\r\n"
 
 	filenames := []string{
 		p.Dir() + "/.git/hooks/post-checkout",
