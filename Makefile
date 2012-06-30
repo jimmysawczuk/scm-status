@@ -1,7 +1,7 @@
 default:
 	@gofmt -w src/*.go src/scm_parsers/*.go
 
-	@@mkdir -p bin
+	@mkdir -p bin
 	
 	@go tool 6g -o bin/scm.6 src/scm.go src/scm_parsers/*.go
 	
