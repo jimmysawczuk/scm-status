@@ -4,6 +4,7 @@ import (
 	"errors"
 	"flag"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -51,7 +52,14 @@ func (p *GitParser) Parse() RevisionInfo {
 	meta_joined, _ := runCommand("git", "log -1 --pretty=format:%h%n%h%n%H%n%ci%n%an%n%ae%n%p%n%P%n%s", "")
 	meta := strings.Split(meta_joined, "\n")
 
-	commit_message_raw, _ := runCommand("git", "log -1 --pretty=format:%B", "")
+	use_old_git, _ := strconv.ParseBool(flag.Lookup("old-git").Value.String())
+	commit_message_raw := ""
+	if use_old_git {
+		commit_message_raw, _ = runCommand("git", "log -1 --pretty=format:%s%n%b", "")
+	} else {
+		commit_message_raw, _ = runCommand("git", "log -1 --pretty=format:%B", "")
+	}
+
 	commit_message := strings.TrimSpace(commit_message_raw)
 
 	rev.Type = Git
