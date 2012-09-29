@@ -43,11 +43,15 @@ func ParseAndWrite(scm ScmParser) {
 	result := scm.Parse()
 
 	filename := flag.Lookup("out").Value.String()
+	pretty := false
+	if flag.Lookup("pretty").Value.String() == "true" {
+		pretty = true
+	}
 
 	if filename == "<STDOUT>" {
-		result.WriteToStdout()
+		result.WriteToStdout(pretty)
 	} else {
-		result.Write(scm.Dir() + "/" + filename)
+		result.Write(scm.Dir()+"/"+filename, pretty)
 	}
 
 }
@@ -132,14 +136,21 @@ func (ri RevisionInfo) toMap() map[string]interface{} {
 	return payload
 }
 
-func (ri RevisionInfo) ToJSON() ([]byte, error) {
+func (ri RevisionInfo) ToJSON(pretty bool) (res []byte, err error) {
 	ri_map := ri.toMap()
 
-	return json.Marshal(ri_map)
+	if pretty {
+		res, err = json.MarshalIndent(ri_map, "", "  ")
+	} else {
+		res, err = json.Marshal(ri_map)
+	}
+
+	return
+
 }
 
-func (ri RevisionInfo) Write(filepath string) {
-	json, _ := ri.ToJSON()
+func (ri RevisionInfo) Write(filepath string, pretty bool) {
+	json, _ := ri.ToJSON(pretty)
 
 	fp, err := os.OpenFile(filepath, os.O_RDWR+os.O_CREATE+os.O_TRUNC, 0666)
 
@@ -153,8 +164,8 @@ func (ri RevisionInfo) Write(filepath string) {
 	}
 }
 
-func (ri RevisionInfo) WriteToStdout() {
-	json, _ := ri.ToJSON()
+func (ri RevisionInfo) WriteToStdout(pretty bool) {
+	json, _ := ri.ToJSON(pretty)
 
 	fmt.Println(bytes.NewBuffer(json).String())
 }
