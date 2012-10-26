@@ -14,11 +14,11 @@ Right now, scm-status supports **Git** and **Mercurial (hg)** on **POSIX** syste
 
 ## Installing on your repository
 
-* From your repository's working path directory, `scm-status setup`. This will install all the hooks you need to keep the snapshot file updated. The snapshot file defaults to `REVISION.json`, but you can change this with the `-out` command line flag.
+* From your repository's working path directory, `scm-status setup`. This will install all the hooks you need to keep the snapshot file updated.
 
 ## Using
 
-* Simply read the `REVISION.json` file using whatever programming language you wish, parse it as JSON, and use whatever you need!
+* Simply read the `REVISION.json` file using whatever programming language you wish, parse it as JSON, and use whatever you need! The snapshot file defaults to `REVISION.json`, but you can change this with the `-out` command line flag. Use the `-pretty` flag to control the format of the output.
 
 ## License
 

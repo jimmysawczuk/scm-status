@@ -38,6 +38,9 @@ func NewGitParser(fq_dir string) (*GitParser, error) {
 func (p *GitParser) Parse() RevisionInfo {
 	var rev RevisionInfo
 
+	version, _ := runCommand("git", "--version", "")
+	version = strings.Replace(version, "git version ", "", -1)
+
 	branch_raw, _ := runCommand("git", "branch --contains HEAD", "")
 	branch_raw = strings.TrimSpace(branch_raw)
 	branch := strings.Replace(branch_raw, "* ", "", -1)
@@ -52,7 +55,7 @@ func (p *GitParser) Parse() RevisionInfo {
 	meta_joined, _ := runCommand("git", "log -1 --pretty=format:%h%n%h%n%H%n%ci%n%an%n%ae%n%p%n%P%n%s", "")
 	meta := strings.Split(meta_joined, "\n")
 
-	use_old_git, _ := strconv.ParseBool(flag.Lookup("old-git").Value.String())
+	use_old_git := !meetsVersion(version, "1.7.2")
 	commit_message_raw := ""
 	if use_old_git {
 		commit_message_raw, _ = runCommand("git", "log -1 --pretty=format:%s%n%b", "")
@@ -125,4 +128,52 @@ func (p *GitParser) Setup() {
 
 func (p *GitParser) Dir() string {
 	return p.dir
+}
+
+func meetsVersion(test, req string) bool {
+
+	intConvert := func(a []string) []int {
+		b := make([]int, len(a))
+
+		for i, v := range a {
+			b[i], _ = strconv.Atoi(v)
+		}
+
+		return b
+	}
+
+	testVersion := intConvert(strings.Split(strings.TrimSpace(test), "."))
+	reqVersion := intConvert(strings.Split(strings.TrimSpace(req), "."))
+
+	// make both versions same length for easier comparison
+	if len(testVersion) > len(reqVersion) {
+		for i := len(reqVersion); i < len(testVersion); i++ {
+			reqVersion = append(reqVersion, 0)
+		}
+	} else if len(reqVersion) > len(testVersion) {
+		for i := len(testVersion); i < len(reqVersion); i++ {
+			testVersion = append(testVersion, 0)
+		}
+	}
+
+	// compare each line and see where we are
+	series := make([]int, len(reqVersion))
+	last_pos, last_neg := -1, -1 // last_neut := -1, -1, -1
+
+	for i, j := len(reqVersion)-1, len(reqVersion)-1; i >= 0; i, j = i-1, j-1 {
+		if testVersion[i] > reqVersion[i] {
+			series[j] = 1
+			last_pos = j
+		} else if testVersion[i] < reqVersion[i] {
+			series[j] = -1
+			last_neg = j
+		} else {
+			series[j] = 0
+			// last_neut = j
+		}
+	}
+
+	valid_version := (last_pos < last_neg && last_pos >= 0) || (last_pos == -1 && last_neg == -1)
+
+	return valid_version
 }
