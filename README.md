@@ -18,7 +18,9 @@ Right now, scm-status supports **Git** and **Mercurial (hg)** on **POSIX** syste
 
 ## Using
 
-* Simply read the `REVISION.json` file using whatever programming language you wish, parse it as JSON, and use whatever you need! The snapshot file defaults to `REVISION.json`, but you can change this with the `-out` command line flag. Use the `-pretty` flag to control the format of the output.
+* Run `scm-status` to generate your snapshot. The output defaults to STDOUT, but can be redirected to a file using the `-out` flag.
+* Then, parse the output or file using whatever programming language you wish as JSON, and use whatever you need!
+* Use the `-pretty` flag to control the format of the output.
 
 ## License
 
