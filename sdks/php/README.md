@@ -2,11 +2,11 @@
 
 The PHP SDK is pretty simple, with just two static methods on the `ScmStatus` class.
 
-## `setFilepath($filepath)`
+#### `setFilepath($filepath)`
 
 Pass this method a string (`$filepath`) at which the output of `scm-status` is stored.
 
-## `format($formatting_string, array $options = array())`
+#### `format($formatting_string, array $options = array())`
 
 Works a little like `printf` or `date`. Pass in a formatting string, get the string you want returned.
 
