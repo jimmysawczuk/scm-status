@@ -16,6 +16,7 @@ func main() {
 func setupFlags() {
 	flag.String("out", "<STDOUT>", "File in which to (over)write the revision info into (defaults to stdout)")
 	flag.String("executable", "/usr/local/bin/scm-status", "Path at which this program can be executed (for hooks)")
+	flag.Bool("old-git", false, "Obsolete, now ignored")
 	flag.Bool("pretty", true, "Set to false to output compressed JSON")
 }
 
