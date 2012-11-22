@@ -27,7 +27,7 @@ func NewHgParser(fq_dir string) (*HgParser, error) {
 	h := new(HgParser)
 
 	h.dir = fq_dir
-	h.Type = Git
+	h.Type = Hg
 
 	os.Chdir(fq_dir)
 
@@ -83,7 +83,7 @@ func (p *HgParser) Setup() {
 	full_hooks += "post-commit = " + hook
 
 	filename := p.Dir() + "/.hg/hgrc"
-	fp, _ := os.OpenFile(filename, os.O_RDWR+os.O_APPEND+os.O_CREATE, 0775)
+	fp, _ := os.OpenFile(filename, os.O_RDWR+os.O_APPEND+os.O_CREATE, 0664)
 
 	_, _ = fp.WriteString(full_hooks)
 
