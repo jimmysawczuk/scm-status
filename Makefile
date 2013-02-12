@@ -4,7 +4,6 @@ default:
 	@mkdir -p bin
 	
 	@go tool 6g -o bin/scm.6 src/scm.go src/scm_parsers/*.go
-	
 	@go tool 6g -o bin/main.6 src/main.go
 	
 	@go tool 6l -o bin/scm-status bin/main.6
