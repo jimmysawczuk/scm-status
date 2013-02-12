@@ -64,7 +64,7 @@ class ScmStatus
 
 		if (isset($options['format_date']))
 		{
-			$info['commit_date_formatted'] = date($date_format, $info['commit_timestamp']);
+			$info['commit_date_formatted'] = date($options['format_date'], $info['commit_timestamp']);
 			$tokens['%F'] = 'commit_date_formatted';
 		}
 
