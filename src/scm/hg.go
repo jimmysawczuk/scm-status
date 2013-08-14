@@ -39,19 +39,26 @@ func (p *HgParser) Parse() RevisionInfo {
 
 	rev.Type = Hg
 
-	info_joined, _ := runCommand("hg", "log -r . --template {rev}\\n{node|short}\\n{node}\\n{date|isodate}\\n"+"{branches}\\n{tags}\\n{author|person}\\n{author|email}", "")
+	info_joined, _ := runCommand("hg", "log -r . --template {rev}\\n{node|short}\\n{node}\\n{date|rfc822date}\\n"+"{branches}\\n{tags}\\n{author|person}\\n{author|email}", "")
 
 	info := strings.Split(info_joined, "\n")
 
 	message, _ := runCommand("hg", "log -r . --template {desc}", "")
 
 	rev.Dec = info[0]
-	rev.HexShort = info[1]
-	rev.HexFull = info[2]
-	rev.CommitDate, _ = time.Parse("2006-01-02 15:04 -0700", info[3])
+	rev.Hex = Hex{
+		Short: info[1],
+		Full:  info[2],
+	}
 
-	rev.AuthorName = info[6]
-	rev.AuthorEmail = info[7]
+	if commit_date, err := time.Parse("Mon, 02 Jan 2006 15:04:05 -0700", info[3]); err == nil {
+		rev.CommitDate = CommitDate(commit_date)
+	}
+
+	rev.Author = Author{
+		Name:  info[6],
+		Email: info[7],
+	}
 
 	rev.Message = message
 

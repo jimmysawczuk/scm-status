@@ -37,13 +37,14 @@ func NewGitParser(fq_dir string) (*GitParser, error) {
 
 func (p *GitParser) Parse() RevisionInfo {
 	var rev RevisionInfo
+	rev.Extra = make(map[string]interface{})
 
 	version, _ := runCommand("git", "--version", "")
 	version = strings.Replace(version, "git version ", "", -1)
 
+	// Need to make this smarter about parsing the active branch.
 	branch_raw, _ := runCommand("git", "branch --contains HEAD", "")
-	branch_raw = strings.TrimSpace(branch_raw)
-	branch := strings.Replace(branch_raw, "* ", "", -1)
+	branch, all_branches := extractBranches(branch_raw)
 
 	tags_joined, _ := runCommand("git", "tag --contains HEAD", "")
 	tags_joined = strings.TrimSpace(tags_joined)
@@ -63,22 +64,30 @@ func (p *GitParser) Parse() RevisionInfo {
 		commit_message_raw, _ = runCommand("git", "log -1 --pretty=format:%B", "")
 	}
 
+	working_copy_status, _ := runCommand("git", "diff HEAD --stat", "")
+
 	commit_message := strings.TrimSpace(commit_message_raw)
 
 	rev.Type = Git
 	rev.Message = commit_message
 	rev.Tags = tags
 	rev.Branch = branch
+	rev.Extra["branches"] = all_branches
 
 	rev.Dec = meta[0]
-	rev.HexShort = meta[1]
-	rev.HexFull = meta[2]
-	rev.AuthorName = meta[4]
-	rev.AuthorEmail = meta[5]
+	rev.Hex = Hex{
+		Short: meta[1],
+		Full:  meta[2],
+	}
 
-	rev.CommitDate, _ = time.Parse("2006-01-02 15:04:05 -0700", meta[3])
+	rev.Author = Author{
+		Name:  meta[4],
+		Email: meta[5],
+	}
 
-	rev.Extra = make(map[string]interface{})
+	if commit_date, err := time.Parse("2006-01-02 15:04:05 -0700", meta[3]); err == nil {
+		rev.CommitDate = CommitDate(commit_date)
+	}
 
 	short_parents := strings.Split(strings.TrimSpace(meta[6]), " ")
 	long_parents := strings.Split(strings.TrimSpace(meta[7]), " ")
@@ -96,6 +105,8 @@ func (p *GitParser) Parse() RevisionInfo {
 
 	rev.Extra["parents"] = parents
 	rev.Extra["subject"] = subject
+
+	rev.WorkingCopy = parseDiffStat(working_copy_status)
 
 	return rev
 
@@ -176,4 +187,23 @@ func meetsVersion(test, req string) bool {
 	valid_version := (last_pos < last_neg && last_pos >= 0) || (last_pos == -1 && last_neg == -1)
 
 	return valid_version
+}
+
+func extractBranches(branch_raw string) (primary_branch string, all_branches []string) {
+	branch_raw = strings.Replace(branch_raw, "\r\n", "\n", -1)
+	temp := strings.Split(branch_raw, "\n")
+	for _, b := range temp {
+		b = strings.TrimSpace(b)
+
+		if strings.HasPrefix(b, "* ") {
+			b = strings.Replace(b, "* ", "", -1)
+			primary_branch = b
+		}
+
+		if len(b) > 0 {
+			all_branches = append(all_branches, b)
+		}
+	}
+
+	return
 }

@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"regexp"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -19,18 +21,42 @@ const (
 )
 
 type RevisionInfo struct {
-	Type        ScmType
-	Dec         string
-	HexShort    string
-	HexFull     string
-	AuthorEmail string
-	AuthorName  string
-	CommitDate  time.Time
-	Message     string
-	Tags        []string
-	Branch      string
+	Type       ScmType    `json:"type"`
+	Dec        string     `json:"dec"`
+	Hex        Hex        `json:"hex"`
+	Author     Author     `json:"author"`
+	CommitDate CommitDate `json:"commit_date"`
+	Message    string     `json:"message"`
+	Tags       []string   `json:"tags"`
+	Branch     string     `json:"branch"`
 
-	Extra map[string]interface{}
+	WorkingCopy WorkingCopy `json:"working_copy"`
+
+	Extra map[string]interface{} `json:"extra,omitempty"`
+}
+
+type Hex struct {
+	Short string `json:"short"`
+	Full  string `json:"full"`
+}
+
+type Author struct {
+	Email string `json:"email"`
+	Name  string `json:"name"`
+}
+
+type CommitDate time.Time
+
+type WorkingCopy struct {
+	Added   int `json:"added"`
+	Deleted int `json:"deleted"`
+
+	Files []WorkingFile `json:"files"`
+}
+
+type WorkingFile struct {
+	Name    string `json:"name"`
+	Changes int    `json:"changes"`
 }
 
 type ScmParser interface {
@@ -105,44 +131,44 @@ func runCommand(exe string, args string, dir string) (string, error) {
 	return str, nil
 }
 
-func (ri RevisionInfo) toMap() map[string]interface{} {
-	payload := make(map[string]interface{})
+// func (ri RevisionInfo) toMap() map[string]interface{} {
+// 	payload := make(map[string]interface{})
 
-	payload["type"] = ri.Type
-	payload["dec"] = ri.Dec
+// 	payload["type"] = ri.Type
+// 	payload["dec"] = ri.Dec
 
-	hex := make(map[string]interface{})
-	hex["short"] = ri.HexShort
-	hex["full"] = ri.HexFull
-	payload["hex"] = hex
+// 	hex := make(map[string]interface{})
+// 	hex["short"] = ri.HexShort
+// 	hex["full"] = ri.HexFull
+// 	payload["hex"] = hex
 
-	author := make(map[string]interface{})
-	author["name"] = ri.AuthorName
-	author["email"] = ri.AuthorEmail
-	payload["author"] = author
+// 	author := make(map[string]interface{})
+// 	author["name"] = ri.AuthorName
+// 	author["email"] = ri.AuthorEmail
+// 	payload["author"] = author
 
-	payload["branch"] = ri.Branch
-	payload["tags"] = ri.Tags
+// 	payload["branch"] = ri.Branch
+// 	payload["tags"] = ri.Tags
 
-	payload["message"] = ri.Message
+// 	payload["message"] = ri.Message
 
-	payload["commit_date"] = ri.CommitDate.Format(time.UnixDate)
-	payload["commit_timestamp"] = ri.CommitDate.Unix()
+// 	payload["commit_date"] = ri.CommitDate.Format(time.UnixDate)
+// 	payload["commit_timestamp"] = ri.CommitDate.Unix()
 
-	for idx, val := range ri.Extra {
-		payload[idx] = val
-	}
+// 	for idx, val := range ri.Extra {
+// 		payload[idx] = val
+// 	}
 
-	return payload
-}
+// 	return payload
+// }
 
 func (ri RevisionInfo) ToJSON(pretty bool) (res []byte, err error) {
-	ri_map := ri.toMap()
+	// ri_map := ri.toMap()
 
 	if pretty {
-		res, err = json.MarshalIndent(ri_map, "", "  ")
+		res, err = json.MarshalIndent(ri, "", "  ")
 	} else {
-		res, err = json.Marshal(ri_map)
+		res, err = json.Marshal(ri)
 	}
 
 	return
@@ -168,4 +194,63 @@ func (ri RevisionInfo) WriteToStdout(pretty bool) {
 	json, _ := ri.ToJSON(pretty)
 
 	fmt.Println(bytes.NewBuffer(json).String())
+}
+
+func (d CommitDate) MarshalJSON() ([]byte, error) {
+	t := time.Time(d)
+
+	str := fmt.Sprintf(`{"date":%q,"timestamp":%d,"iso8601":%q}`, t.Format(time.UnixDate), t.Unix(), t.Format("2006-01-02T15:04:05-07:00"))
+
+	return bytes.NewBufferString(str).Bytes(), nil
+}
+
+func (wc WorkingCopy) MarshalJSON() ([]byte, error) {
+	if len(wc.Files) == 0 {
+		wc.Files = make([]WorkingFile, 0)
+	}
+
+	files, _ := json.Marshal(wc.Files)
+
+	str := fmt.Sprintf(`{"added":%d,"deleted":%d,"files":%s}`, wc.Added, wc.Deleted, files)
+	return bytes.NewBufferString(str).Bytes(), nil
+}
+
+func parseDiffStat(in string) (wc WorkingCopy) {
+
+	in = strings.Replace(in, "\r\n", "\n", -1)
+	lines := strings.Split(in, "\n")
+
+	file_re := regexp.MustCompile(`^(.+?)\s+\|\s+(\d+) \++\-+$`)
+	summary_re := regexp.MustCompile(`^(?:(\d+) files changed)?(?:, )?(?:(\d+) insertions\(\+\))?(?:, )?(?:(\d+) deletions\(\-\))?$`)
+
+	wc.Files = []WorkingFile{}
+
+	for _, line := range lines {
+
+		line = strings.TrimSpace(line)
+
+		if len(line) == 0 {
+			continue
+		} else if file_re.MatchString(line) {
+			match := file_re.FindAllStringSubmatch(line, -1)
+
+			changes, _ := strconv.ParseInt(match[0][2], 10, 32)
+
+			wc.Files = append(wc.Files, WorkingFile{
+				Name:    match[0][1],
+				Changes: int(changes),
+			})
+
+		} else if summary_re.MatchString(line) {
+			match := summary_re.FindAllStringSubmatch(line, -1)
+
+			additions, _ := strconv.ParseInt(match[0][2], 10, 32)
+			deletions, _ := strconv.ParseInt(match[0][3], 10, 32)
+
+			wc.Added = int(additions)
+			wc.Deleted = int(deletions)
+		}
+	}
+
+	return wc
 }

@@ -22,4 +22,8 @@ dev:
 	@$(fmt)
 	@$(build)
 
+install:
+	@sudo cp bin/scm-status /usr/local/bin/
+	@sudo chmod 555 /usr/local/bin/scm-status
+
 default: dev
