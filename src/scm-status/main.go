@@ -1,11 +1,11 @@
 package main
 
 import (
+	"scm"
+
 	"flag"
 	"fmt"
 	"os"
-
-	"./bin/scm"
 )
 
 func main() {
