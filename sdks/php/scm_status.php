@@ -28,7 +28,7 @@ class ScmStatus
 
 		return self::$parsed;
 	}
-	
+
 	public static function format($format_str, array $options = array())
 	{
 		$info = self::parse();
@@ -41,7 +41,7 @@ class ScmStatus
 		{
 			$return_if_fail = "";
 		}
-		
+
 		if (!$info)
 		{
 			return $return_if_fail;
@@ -52,8 +52,8 @@ class ScmStatus
 			"%n" => 'dec',
 			"%r" => 'hex.short',
 			"%R" => 'hex.full',
-			"%d" => 'commit_date',
-			"%U" => 'commit_timestamp',
+			"%d" => 'commit_date.date',
+			"%U" => 'commit_date.timestamp',
 			"%b" => 'branch',
 			"%t" => 'tags',
 			"%a" => 'author.name',
@@ -76,9 +76,9 @@ class ScmStatus
 		{
 			$delimiter = ",";
 		}
-		
+
 		$tbr = $format_str;
-		
+
 		foreach ($tokens as $token => $key)
 		{
 			$key = explode(".", $key);
@@ -96,10 +96,10 @@ class ScmStatus
 
 			$tbr = str_replace($token, $val, $tbr);
 		}
-		
+
 		return $tbr;
 	}
-	
+
 	public static function load()
 	{
 		return self::parse();
