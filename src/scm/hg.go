@@ -89,7 +89,7 @@ func (p *HgParser) Setup() {
 	full_hooks += "post-update = " + hook
 	full_hooks += "post-commit = " + hook
 
-	filename := p.Dir() + "/.hg/hgrc"
+	filename := strings.Join([]string{p.Dir(), ".hg", "hgrc"}, path_separator)
 	fp, _ := os.OpenFile(filename, os.O_RDWR+os.O_APPEND+os.O_CREATE, 0664)
 
 	_, _ = fp.WriteString(full_hooks)

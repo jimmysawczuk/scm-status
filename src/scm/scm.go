@@ -65,6 +65,8 @@ type ScmParser interface {
 	Dir() string
 }
 
+var path_separator string = string(os.PathSeparator)
+
 func ParseAndWrite(scm ScmParser) {
 	result := scm.Parse()
 
@@ -77,7 +79,7 @@ func ParseAndWrite(scm ScmParser) {
 	if filename == "<STDOUT>" {
 		result.WriteToStdout(pretty)
 	} else {
-		result.Write(scm.Dir()+"/"+filename, pretty)
+		result.Write(scm.Dir()+path_separator+filename, pretty)
 	}
 
 }
@@ -131,39 +133,7 @@ func runCommand(exe string, args string, dir string) (string, error) {
 	return str, nil
 }
 
-// func (ri RevisionInfo) toMap() map[string]interface{} {
-// 	payload := make(map[string]interface{})
-
-// 	payload["type"] = ri.Type
-// 	payload["dec"] = ri.Dec
-
-// 	hex := make(map[string]interface{})
-// 	hex["short"] = ri.HexShort
-// 	hex["full"] = ri.HexFull
-// 	payload["hex"] = hex
-
-// 	author := make(map[string]interface{})
-// 	author["name"] = ri.AuthorName
-// 	author["email"] = ri.AuthorEmail
-// 	payload["author"] = author
-
-// 	payload["branch"] = ri.Branch
-// 	payload["tags"] = ri.Tags
-
-// 	payload["message"] = ri.Message
-
-// 	payload["commit_date"] = ri.CommitDate.Format(time.UnixDate)
-// 	payload["commit_timestamp"] = ri.CommitDate.Unix()
-
-// 	for idx, val := range ri.Extra {
-// 		payload[idx] = val
-// 	}
-
-// 	return payload
-// }
-
 func (ri RevisionInfo) ToJSON(pretty bool) (res []byte, err error) {
-	// ri_map := ri.toMap()
 
 	if pretty {
 		res, err = json.MarshalIndent(ri, "", "  ")

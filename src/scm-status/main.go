@@ -2,13 +2,21 @@ package main
 
 import (
 	"scm"
+	"static"
 
 	"flag"
 	"fmt"
 	"os"
+	"path"
 )
 
 func main() {
+
+	flag.Usage = func() {
+		fmt.Fprintf(os.Stderr, "%s %s\nUsage:\n", path.Base(os.Args[0]), static.Version())
+		flag.PrintDefaults()
+	}
+
 	setupFlags()
 	handle()
 }

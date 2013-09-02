@@ -122,10 +122,12 @@ func (p *GitParser) Setup() {
 
 	hook := executable + " -out=\"" + out + "\"; # scm-status hook\r\n"
 
+	hook_dir := strings.Join([]string{p.Dir(), ".git", "hooks"}, path_separator)
+
 	filenames := []string{
-		p.Dir() + "/.git/hooks/post-checkout",
-		p.Dir() + "/.git/hooks/post-merge",
-		p.Dir() + "/.git/hooks/post-commit",
+		hook_dir + path_separator + "post-checkout",
+		hook_dir + path_separator + "post-merge",
+		hook_dir + path_separator + "post-commit",
 	}
 
 	for _, filename := range filenames {
