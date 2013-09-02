@@ -52,8 +52,6 @@ class ScmStatus
 			"%n" => 'dec',
 			"%r" => 'hex.short',
 			"%R" => 'hex.full',
-			"%d" => 'commit_date.date',
-			"%U" => 'commit_date.timestamp',
 			"%b" => 'branch',
 			"%t" => 'tags',
 			"%a" => 'author.name',
@@ -62,9 +60,25 @@ class ScmStatus
 			"%s" => 'subject',
 		);
 
-		if (isset($options['format_date']))
+		if (isset($info['commit_timestamp']))
+		{
+			$tokens["%d"] = 'commit_date';
+			$tokens["%U"] = 'commit_timestamp';
+		}
+		else
+		{
+			$tokens["%d"] = 'commit_date.date';
+			$tokens["%U"] = 'commit_date.timestamp';
+		}
+
+		if (isset($options['format_date']) && isset($info['commit_timestamp']))
 		{
 			$info['commit_date_formatted'] = date($options['format_date'], $info['commit_timestamp']);
+			$tokens['%F'] = 'commit_date_formatted';
+		}
+		else
+		{
+			$info['commit_date_formatted'] = date($options['format_date'], $info['commit_date']['timestamp']);
 			$tokens['%F'] = 'commit_date_formatted';
 		}
 
@@ -86,7 +100,14 @@ class ScmStatus
 			$val = $info;
 			for ($i = 0; $i < count($key); $i++)
 			{
-				$val = $val[$key[$i]];
+				if (isset($val[$key[$i]]))
+				{
+					$val = $val[$key[$i]];
+				}
+				else
+				{
+					$val = false;
+				}
 			}
 
 			if (is_array($val))
@@ -94,7 +115,10 @@ class ScmStatus
 				$val = implode($delimiter, $val);
 			}
 
-			$tbr = str_replace($token, $val, $tbr);
+			if (!empty($val))
+			{
+				$tbr = str_replace($token, $val, $tbr);
+			}
 		}
 
 		return $tbr;
