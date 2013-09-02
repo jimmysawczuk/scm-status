@@ -9,6 +9,7 @@ Right now, scm-status supports **Git** and **Mercurial (hg)** on **POSIX** syste
 ## Building
 
 * [Install go](http://golang.org/doc/install) (any version >= 1.0 should do)
+* `go get github.com/jimmysawczuk/go-bindata` (to embed version information)
 * `git clone http://github.com/jimmysawczuk/scm-status.git && cd scm-status`
 * `make && make install`
 
