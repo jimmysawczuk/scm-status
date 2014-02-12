@@ -9,7 +9,7 @@ Right now, scm-status supports **Git** and **Mercurial (hg)** on **POSIX** syste
 ## Building
 
 * [Install go](http://golang.org/doc/install) (any version >= 1.0 should do)
-* `go get github.com/jimmysawczuk/go-bindata` (to embed version information)
+* `go get github.com/jimmysawczuk/go-binary` (to embed version information)
 * `git clone http://github.com/jimmysawczuk/scm-status.git && cd scm-status`
 * `make && make install`
 
@@ -29,7 +29,7 @@ Right now, scm-status supports **Git** and **Mercurial (hg)** on **POSIX** syste
 ## License
 
     The MIT License (MIT)
-    Copyright (C) 2012-2013 by Jimmy Sawczuk
+    Copyright (C) 2012-2014 by Jimmy Sawczuk
 
     Permission is hereby granted, free of charge, to any person obtaining a copy
     of this software and associated documentation files (the "Software"), to deal

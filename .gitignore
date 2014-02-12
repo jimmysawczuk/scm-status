@@ -1,4 +1,4 @@
 bin/
 pkg/
 REVISION*
-static/version.go
+src/static/version.go

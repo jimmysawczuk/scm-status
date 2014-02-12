@@ -13,7 +13,7 @@ endef
 define build
 	@echo 'Building...'
 
-	git tag --contains HEAD | go-bindata -f="getVersion" -p="static" > src/static/version.go
+	git tag --contains HEAD | go-binary -f="getVersion" -p="static" -out="src/static/version.go"
 
 	go install scm
 	go install static
