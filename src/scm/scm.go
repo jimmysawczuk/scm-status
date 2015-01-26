@@ -190,13 +190,12 @@ func parseDiffStat(in string) (wc WorkingCopy) {
 	in = strings.Replace(in, "\r\n", "\n", -1)
 	lines := strings.Split(in, "\n")
 
-	file_re := regexp.MustCompile(`^\s*(.+?)\s+\|\s+(\d+) \+*\-*$`)
-	summary_re := regexp.MustCompile(`^\s*(?:(\d+) files changed)?(?:, )?(?:(\d+) insertions\(\+\))?(?:, )?(?:(\d+) deletions\(\-\))?$`)
+	file_re := regexp.MustCompile(`^(.+?)\s+\|\s+(\d+) [\+|\-]*$`)
+	summary_re := regexp.MustCompile(`^(?:(\d+) files? changed)?(?:, )?(?:(\d+) insertions?\(\+\))?(?:, )?(?:(\d+) deletions?\(\-\))?$`)
 
 	wc.Files = []WorkingFile{}
 
 	for _, line := range lines {
-
 		line = strings.TrimSpace(line)
 
 		if len(line) == 0 {
