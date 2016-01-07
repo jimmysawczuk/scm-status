@@ -1,7 +1,5 @@
 package main
 
-//go:generate git tag --contains HEAD | go-binary -f="getVersion" -p="main" -out="./version.go"
-
 import (
 	"scm-status/scm"
 
@@ -14,7 +12,7 @@ import (
 func main() {
 
 	flag.Usage = func() {
-		fmt.Fprintf(os.Stderr, "%s %s\nUsage:\n", path.Base(os.Args[0]), static.Version())
+		fmt.Fprintf(os.Stderr, "%s %s\nUsage:\n", path.Base(os.Args[0]), scm.Version())
 		flag.PrintDefaults()
 	}
 
