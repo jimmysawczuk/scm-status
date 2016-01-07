@@ -4,14 +4,12 @@
 
 ## Support
 
-Right now, scm-status supports **Git** and **Mercurial (hg)** on **POSIX** systems.
+Right now, scm-status supports Git and Mercurial and has been tested on Linux and Mac OS X.
 
-## Building
+## Installing on your system
 
 * [Install go](http://golang.org/doc/install) (any version >= 1.0 should do)
-* `go get github.com/jimmysawczuk/go-binary` (to embed version information)
-* `git clone http://github.com/jimmysawczuk/scm-status.git && cd scm-status`
-* `make && make install`
+* `go get github.com/jimmysawczuk/scm-status/cmd/scm-status`
 
 ## Installing on your repository
 
