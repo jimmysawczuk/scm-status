@@ -1,8 +1,9 @@
 package main
 
+//go:generate git tag --contains HEAD | go-binary -f="getVersion" -p="main" -out="./version.go"
+
 import (
-	"scm"
-	"static"
+	"scm-status/scm"
 
 	"flag"
 	"fmt"
