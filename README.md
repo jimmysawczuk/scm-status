@@ -29,7 +29,7 @@ Right now, scm-status supports **Git** and **Mercurial (hg)** on **POSIX** syste
 ## License
 
     The MIT License (MIT)
-    Copyright (C) 2012-2014 by Jimmy Sawczuk
+    Copyright (C) 2012-2016 by Jimmy Sawczuk
 
     Permission is hereby granted, free of charge, to any person obtaining a copy
     of this software and associated documentation files (the "Software"), to deal
