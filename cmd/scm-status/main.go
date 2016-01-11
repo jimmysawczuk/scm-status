@@ -1,7 +1,7 @@
 package main
 
 import (
-	"scm-status/scm"
+	"github.com/jimmysawczuk/scm-status/scm"
 
 	"flag"
 	"fmt"
