@@ -12,16 +12,7 @@ define build
 	go install scm-status/cmd/scm-status
 endef
 
-define snapshot
-	@echo 'Snapshotting...'
-	@go get github.com/jimmysawczuk/go-binary
-	@git tag --contains HEAD | go-binary -f="getVersion" -p="scm" -out="scm/version.go"
-endef
-
 default: dev
-
-snapshot:
-	@$(snapshot)
 
 dev:
 	@$(reset)
@@ -31,7 +22,6 @@ dev:
 production:
 	@$(reset)
 	@$(fmt)
-	@$(snapshot)
 	@$(build)
 
 install:

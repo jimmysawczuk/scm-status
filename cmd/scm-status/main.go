@@ -9,10 +9,12 @@ import (
 	"path"
 )
 
+var version = "1.1.1"
+
 func main() {
 
 	flag.Usage = func() {
-		fmt.Fprintf(os.Stderr, "%s %s\nUsage:\n", path.Base(os.Args[0]), scm.Version())
+		fmt.Fprintf(os.Stderr, "%s v%s\nUsage:\n", path.Base(os.Args[0]), version)
 		flag.PrintDefaults()
 	}
 
