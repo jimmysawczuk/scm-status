@@ -39,6 +39,8 @@ func newGitParser(dir string) (*gitParser, error) {
 // Parse returns a RevisionInfo struct after parsing the provided directory for working copy information.
 func (p *gitParser) Parse() (Snapshot, error) {
 	version, _ := runCommand(p.dir, "git", "--version")
+	version = strings.Replace(version, "git version ", "", -1)
+
 	rawBranch, _ := runCommand(p.dir, "git", "branch", "--contains", "HEAD")
 	tagsJoined, _ := runCommand(p.dir, "git", "tag", "--contains", "HEAD")
 	metaJoined, _ := runCommand(p.dir, "git", "log", "-1", "--pretty=format:%h%n%h%n%H%n%ci%n%an%n%ae%n%p%n%P%n%s")
@@ -57,8 +59,6 @@ func (p *gitParser) Parse() (Snapshot, error) {
 		Type:  "git",
 		Extra: make(map[string]interface{}),
 	}
-
-	version = strings.Replace(version, "git version ", "", -1)
 
 	currentBranch, allBranches := extractBranches(rawBranch)
 
