@@ -9,7 +9,7 @@ Right now, scm-status supports Git and Mercurial and has been tested on Linux an
 
 ## Installing on your system
 
-* [Install go](http://golang.org/doc/install) (any version >= 1.0 should do)
+* [Install go](http://golang.org/doc/install) (any version >= 1.6 should do)
 * `go get github.com/jimmysawczuk/scm-status`
 
 ## Using
