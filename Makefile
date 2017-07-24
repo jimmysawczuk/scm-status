@@ -9,7 +9,7 @@ endef
 
 define build
 	@echo 'Building...'
-	go install scm-status/cmd/scm-status
+	go install github.com/jimmysawczuk/scm-status
 endef
 
 default: dev

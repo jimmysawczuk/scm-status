@@ -22,7 +22,7 @@ for GOOS in windows darwin linux; do
 		fi
 
 		echo "$GOOS/$GOARCH" && echo "----------------------------";
-		GOOS=$GOOS GOARCH=$GOARCH go build -v -o $APPNAME scm-status/cmd/scm-status
+		GOOS=$GOOS GOARCH=$GOARCH go build -v -o $APPNAME github.com/jimmysawczuk/scm-status
 
 		# if this is the host OS/arch, the exe is put in the root of bin rather than a subdirectory
 		if [[ $GOOS == $GOHOSTOS ]] && [[ $GOARCH == $GOHOSTARCH ]]; then
