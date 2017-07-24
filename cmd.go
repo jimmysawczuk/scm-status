@@ -2,6 +2,7 @@ package main
 
 import (
 	"github.com/jimmysawczuk/scm-status/scm"
+	"github.com/pkg/errors"
 
 	"flag"
 	"fmt"
@@ -9,7 +10,7 @@ import (
 	"path"
 )
 
-var version = "1.1.1"
+var version = "1.2.0"
 
 func main() {
 
@@ -34,52 +35,51 @@ func handle() {
 
 	args := flag.Args()
 
-	if len(args) == 1 && args[len(args)-1] == "setup" {
+	switch {
+	case len(args) == 1 && args[len(args)-1] == "setup":
 		setup(args[0])
-	} else if len(args) == 0 {
-		parse_revision(".")
-	} else {
-		parse_revision(args[0])
-	}
 
+	case len(args) == 0:
+		parseRevision(".")
+
+	default:
+		parseRevision(args[0])
+	}
 }
 
-func getScmParser(dir string) (parser scm.ScmParser, err error) {
-	err = os.Chdir(dir)
+func getScmParser(dir string) (scm.ScmParser, error) {
+	if err := os.Chdir(dir); err != nil {
+		return nil, errors.Wrapf(err, "can't access directory (need execute permissions): %s", dir)
+	}
 
+	parser, err := scm.GetParser(dir)
 	if err != nil {
-		fmt.Errorf("Can't access %s; do you have execute permissions?\n", dir)
-		return nil, err
+		return nil, errors.Wrapf(err, "build parser (directory: %s)", dir)
 	}
 
-	parser, err = scm.GetParser(dir)
-
-	return
+	return parser, nil
 }
 
-func parse_revision(dir string) {
+func parseRevision(dir string) error {
 
 	parser, err := getScmParser(dir)
-
 	if err != nil {
-		fmt.Errorf("%s", err)
-		return
+		return err
 	}
 
-	if parser != nil {
-		scm.ParseAndWrite(parser)
-	}
+	scm.ParseAndWrite(parser)
+	return nil
 }
 
 func setup(dir string) {
 	parser, err := getScmParser(".")
 
 	if err != nil {
-		fmt.Errorf("%s", err)
+		fmt.Fprintf(os.Stderr, "%s\n", err)
 		return
 	}
 
 	if parser != nil {
-		parser.Setup()
+		parser.Init()
 	}
 }

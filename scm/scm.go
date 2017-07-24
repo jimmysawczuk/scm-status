@@ -1,14 +1,14 @@
 package scm
 
 import (
+	"github.com/pkg/errors"
+
 	"bytes"
 	"encoding/json"
 	"flag"
 	"fmt"
 	"os"
 	"os/exec"
-	"regexp"
-	"strconv"
 	"strings"
 	"time"
 )
@@ -61,11 +61,10 @@ type WorkingFile struct {
 
 type ScmParser interface {
 	Parse() RevisionInfo
-	Setup()
-	Dir() string
+	Init()
 }
 
-var path_separator string = string(os.PathSeparator)
+// var pathSeparator string = string(os.PathSeparator)
 
 func ParseAndWrite(scm ScmParser) {
 	result := scm.Parse()
@@ -79,24 +78,23 @@ func ParseAndWrite(scm ScmParser) {
 	if filename == "<STDOUT>" {
 		result.WriteToStdout(pretty)
 	} else {
-		result.Write(scm.Dir()+path_separator+filename, pretty)
+		result.Write(filename, pretty)
 	}
 
 }
 
-func resolveDir(dir string) (fq_dir string, err error) {
+func resolveDir(dir string) (string, error) {
 	os.Chdir(dir)
 
-	fq_dir, err = os.Getwd()
-
+	fqDir, err := os.Getwd()
 	if err != nil {
-		fmt.Errorf("Can't resolve working directory %s; do you have execute permissions?\n", dir)
-		return "", err
+		return "", errors.Wrapf(err, "can't access directory (need execute permissions): %s", dir)
 	}
 
-	return fq_dir, nil
+	return fqDir, nil
 }
 
+// GetParser returns a new ScmParser that's suited to read the status from the passed directory.
 func GetParser(dir string) (ScmParser, error) {
 
 	dir, err := resolveDir(dir)
@@ -117,20 +115,15 @@ func GetParser(dir string) (ScmParser, error) {
 	return nil, nil
 }
 
-func runCommand(exe string, args string, dir string) (string, error) {
-	parts := strings.Split(args, " ")
+func runCommand(exe string, parts ...string) (string, error) {
 	cmd := exec.Command(exe, parts...)
 
 	output, err := cmd.Output()
-
 	if err != nil {
-		fmt.Errorf("%s", err)
-		return "", err
+		return "", errors.Wrapf(err, "runCommand: %s %s", exe, strings.Join(parts, " "))
 	}
 
-	str := bytes.NewBuffer(output).String()
-
-	return str, nil
+	return string(output), nil
 }
 
 func (ri RevisionInfo) ToJSON(pretty bool) (res []byte, err error) {
@@ -172,54 +165,4 @@ func (d CommitDate) MarshalJSON() ([]byte, error) {
 	str := fmt.Sprintf(`{"date":%q,"timestamp":%d,"iso8601":%q}`, t.Format(time.UnixDate), t.Unix(), t.Format("2006-01-02T15:04:05-07:00"))
 
 	return bytes.NewBufferString(str).Bytes(), nil
-}
-
-func (wc WorkingCopy) MarshalJSON() ([]byte, error) {
-	if len(wc.Files) == 0 {
-		wc.Files = make([]WorkingFile, 0)
-	}
-
-	files, _ := json.Marshal(wc.Files)
-
-	str := fmt.Sprintf(`{"added":%d,"deleted":%d,"files":%s}`, wc.Added, wc.Deleted, files)
-	return bytes.NewBufferString(str).Bytes(), nil
-}
-
-func parseDiffStat(in string) (wc WorkingCopy) {
-
-	in = strings.Replace(in, "\r\n", "\n", -1)
-	lines := strings.Split(in, "\n")
-
-	file_re := regexp.MustCompile(`^(.+?)\s+\|\s+(\d+) [\+|\-]*$`)
-	summary_re := regexp.MustCompile(`^(?:(\d+) files? changed)?(?:, )?(?:(\d+) insertions?\(\+\))?(?:, )?(?:(\d+) deletions?\(\-\))?$`)
-
-	wc.Files = []WorkingFile{}
-
-	for _, line := range lines {
-		line = strings.TrimSpace(line)
-
-		if len(line) == 0 {
-			continue
-		} else if file_re.MatchString(line) {
-			match := file_re.FindAllStringSubmatch(line, -1)
-
-			changes, _ := strconv.ParseInt(match[0][2], 10, 32)
-
-			wc.Files = append(wc.Files, WorkingFile{
-				Name:    match[0][1],
-				Changes: int(changes),
-			})
-
-		} else if summary_re.MatchString(line) {
-			match := summary_re.FindAllStringSubmatch(line, -1)
-
-			additions, _ := strconv.ParseInt(match[0][2], 10, 32)
-			deletions, _ := strconv.ParseInt(match[0][3], 10, 32)
-
-			wc.Added = int(additions)
-			wc.Deleted = int(deletions)
-		}
-	}
-
-	return wc
 }
