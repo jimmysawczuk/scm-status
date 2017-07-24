@@ -1,49 +1,45 @@
 package scm
 
 import (
+	"bytes"
 	"errors"
-	"flag"
 	"os"
-	"path"
+	"path/filepath"
 	"strings"
+	"text/template"
 	"time"
 )
 
-type HgParser struct {
-	Dir  string
-	Type ScmType
+var hgHookTmpl = template.Must(
+	template.New("hghooks").Parse(`{{ .ExecutablePath }} {{ with .OutputConfig.Filename }}{{ printf "-out=%q" . }}{{ end }} {{ with .OutputConfig.Pretty }}{{ printf "-pretty=%t" . }}{{ end }}; # installed by scm-status (github.com/jimmysawczuk/scm-status)`),
+)
+
+type hgParser struct {
+	dir string
 }
 
-func NewHgParser(fqDir string) (*HgParser, error) {
-	err := os.Chdir(fqDir)
-	if err != nil {
-		return nil, errors.New("Not a valid directory")
-	}
-
-	err = os.Chdir(".hg")
+func newHgParser(dir string) (*hgParser, error) {
+	_, err := os.Stat(filepath.Join(dir, ".hg"))
 	if err != nil {
 		return nil, errors.New("Not an hg repository")
 	}
 
-	h := &HgParser{
-		Dir:  fqDir,
-		Type: Hg,
+	h := &hgParser{
+		dir: dir,
 	}
-
-	os.Chdir(fqDir)
 
 	return h, nil
 }
 
-func (p *HgParser) Parse() RevisionInfo {
-	var rev RevisionInfo
+func (p *hgParser) Parse() (Snapshot, error) {
+	rev := Snapshot{
+		Type: "hg",
+	}
 
-	rev.Type = Hg
-
-	rawInfo, _ := runCommand("hg", "log", "-r", ".", "--template", "{rev}\\n{node|short}\\n{node}\\n{date|rfc822date}\\n"+"{branches}\\n{tags}\\n{author|person}\\n{author|email}")
+	rawInfo, _ := runCommand(p.dir, "hg", "log", "-r", ".", "--template", "{rev}\\n{node|short}\\n{node}\\n{date|rfc822date}\\n"+"{branches}\\n{tags}\\n{author|person}\\n{author|email}")
 	info := strings.Split(rawInfo, "\n")
 
-	message, _ := runCommand("hg", "log", "-r", ".", "--template", "{desc}")
+	message, _ := runCommand(p.dir, "hg", "log", "-r", ".", "--template", "{desc}")
 
 	rev.Dec = info[0]
 	rev.Hex = Hex{
@@ -70,29 +66,24 @@ func (p *HgParser) Parse() RevisionInfo {
 
 	rev.Tags = strings.Split(info[5], " ")
 
-	return rev
+	return rev, nil
 
 }
 
-func (p *HgParser) Init() {
+func (p *hgParser) InstallHooks(config HooksConfig) error {
 
-	executable := flag.Lookup("executable").Value.String()
-	out := flag.Lookup("out").Value.String()
-
-	if out == "<STDOUT>" {
-		out = "REVISION.json"
-	}
-
-	hook := executable + " -out=\"" + out + "\"; # scm-status hook\r\n"
+	buf := &bytes.Buffer{}
+	hgHookTmpl.Execute(buf, config)
+	hook := buf.String()
 
 	fullHooks := "\r\n\r\n" + "[hooks]\r\n"
-	fullHooks += "post-update = " + hook
-	fullHooks += "post-commit = " + hook
+	fullHooks += "post-update = " + hook + "\r\n"
+	fullHooks += "post-commit = " + hook + "\r\n"
 
-	filename := path.Join(p.Dir, ".hg", "hgrc")
+	filename := filepath.Join(p.dir, ".hg", "hgrc")
 	fp, _ := os.OpenFile(filename, os.O_RDWR+os.O_APPEND+os.O_CREATE, 0664)
-
 	_, _ = fp.WriteString(fullHooks)
-
 	fp.Close()
+
+	return nil
 }
