@@ -10,7 +10,7 @@ import (
 	"path"
 )
 
-var version = "1.2.0"
+var version = "2.0.0"
 
 var out = flag.String("out", "", "File in which to (over)write the revision info into (defaults to stdout)")
 var executable = flag.String("executable", "", "Path to this executable (used for hooks; default: $GOPATH/bin/scm-status)")
