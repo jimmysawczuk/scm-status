@@ -1,7 +1,7 @@
 #!/bin/bash
 
 APPNAME="scm-status"
-VERSION="1.1.1"
+VERSION="2.0.0"
 
 # Setup
 mkdir -p deploy

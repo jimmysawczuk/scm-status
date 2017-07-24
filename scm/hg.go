@@ -1,49 +1,45 @@
 package scm
 
 import (
+	"bytes"
 	"errors"
-	"flag"
 	"os"
+	"path/filepath"
 	"strings"
+	"text/template"
 	"time"
 )
 
-type HgParser struct {
-	dir  string
-	Type ScmType
+var hgHookTmpl = template.Must(
+	template.New("hghooks").Parse(`{{ .ExecutablePath }} {{ with .OutputConfig.Filename }}{{ printf "-out=%q" . }}{{ end }} {{ with .OutputConfig.Pretty }}{{ printf "-pretty=%t" . }}{{ end }}; # installed by scm-status (github.com/jimmysawczuk/scm-status)`),
+)
+
+type hgParser struct {
+	dir string
 }
 
-func NewHgParser(fq_dir string) (*HgParser, error) {
-	err := os.Chdir(fq_dir)
-	if err != nil {
-		return nil, errors.New("Not a valid directory")
-	}
-
-	err = os.Chdir(".hg")
+func newHgParser(dir string) (*hgParser, error) {
+	_, err := os.Stat(filepath.Join(dir, ".hg"))
 	if err != nil {
 		return nil, errors.New("Not an hg repository")
 	}
 
-	h := new(HgParser)
-
-	h.dir = fq_dir
-	h.Type = Hg
-
-	os.Chdir(fq_dir)
+	h := &hgParser{
+		dir: dir,
+	}
 
 	return h, nil
 }
 
-func (p *HgParser) Parse() RevisionInfo {
-	var rev RevisionInfo
+func (p *hgParser) Parse() (Snapshot, error) {
+	rev := Snapshot{
+		Type: "hg",
+	}
 
-	rev.Type = Hg
+	rawInfo, _ := runCommand(p.dir, "hg", "log", "-r", ".", "--template", "{rev}\\n{node|short}\\n{node}\\n{date|rfc822date}\\n"+"{branches}\\n{tags}\\n{author|person}\\n{author|email}")
+	info := strings.Split(rawInfo, "\n")
 
-	info_joined, _ := runCommand("hg", "log -r . --template {rev}\\n{node|short}\\n{node}\\n{date|rfc822date}\\n"+"{branches}\\n{tags}\\n{author|person}\\n{author|email}", "")
-
-	info := strings.Split(info_joined, "\n")
-
-	message, _ := runCommand("hg", "log -r . --template {desc}", "")
+	message, _ := runCommand(p.dir, "hg", "log", "-r", ".", "--template", "{desc}")
 
 	rev.Dec = info[0]
 	rev.Hex = Hex{
@@ -51,8 +47,8 @@ func (p *HgParser) Parse() RevisionInfo {
 		Full:  info[2],
 	}
 
-	if commit_date, err := time.Parse("Mon, 02 Jan 2006 15:04:05 -0700", info[3]); err == nil {
-		rev.CommitDate = CommitDate(commit_date)
+	if date, err := time.Parse("Mon, 02 Jan 2006 15:04:05 -0700", info[3]); err == nil {
+		rev.CommitDate = CommitDate(date)
 	}
 
 	rev.Author = Author{
@@ -70,33 +66,24 @@ func (p *HgParser) Parse() RevisionInfo {
 
 	rev.Tags = strings.Split(info[5], " ")
 
-	return rev
+	return rev, nil
 
 }
 
-func (p *HgParser) Setup() {
+func (p *hgParser) InstallHooks(config HooksConfig) error {
 
-	executable := flag.Lookup("executable").Value.String()
-	out := flag.Lookup("out").Value.String()
+	buf := &bytes.Buffer{}
+	hgHookTmpl.Execute(buf, config)
+	hook := buf.String()
 
-	if out == "<STDOUT>" {
-		out = "REVISION.json"
-	}
+	fullHooks := "\r\n\r\n" + "[hooks]\r\n"
+	fullHooks += "post-update = " + hook + "\r\n"
+	fullHooks += "post-commit = " + hook + "\r\n"
 
-	hook := executable + " -out=\"" + out + "\"; # scm-status hook\r\n"
-
-	full_hooks := "\r\n\r\n" + "[hooks]\r\n"
-	full_hooks += "post-update = " + hook
-	full_hooks += "post-commit = " + hook
-
-	filename := strings.Join([]string{p.Dir(), ".hg", "hgrc"}, path_separator)
+	filename := filepath.Join(p.dir, ".hg", "hgrc")
 	fp, _ := os.OpenFile(filename, os.O_RDWR+os.O_APPEND+os.O_CREATE, 0664)
-
-	_, _ = fp.WriteString(full_hooks)
-
+	_, _ = fp.WriteString(fullHooks)
 	fp.Close()
-}
 
-func (p *HgParser) Dir() string {
-	return p.dir
+	return nil
 }

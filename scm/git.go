@@ -1,78 +1,82 @@
 package scm
 
 import (
-	"errors"
-	"flag"
+	"github.com/pkg/errors"
+
+	"bytes"
 	"os"
+	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
+	"text/template"
 	"time"
 )
 
-type GitParser struct {
-	dir  string
-	Type ScmType
+var gitFileDiffRegexp = regexp.MustCompile(`^(.+?)\s+\|\s+(\d+) [\+|\-]*$`)
+var gitSummaryDiffRegexp = regexp.MustCompile(`^(?:(\d+) files? changed)?(?:, )?(?:(\d+) insertions?\(\+\))?(?:, )?(?:(\d+) deletions?\(\-\))?$`)
+var gitHookTmpl = template.Must(
+	template.New("githooks").Parse(`{{ .ExecutablePath }} {{ with .OutputConfig.Filename }}{{ printf "-out=%q" . }}{{ end }} {{ with .OutputConfig.Pretty }}{{ printf "-pretty=%t" . }}{{ end }}; # installed by scm-status (github.com/jimmysawczuk/scm-status)`),
+)
+
+type gitParser struct {
+	dir string
 }
 
-func NewGitParser(fq_dir string) (*GitParser, error) {
-	err := os.Chdir(fq_dir)
-	if err != nil {
-		return nil, errors.New("Not a valid directory")
-	}
-
-	err = os.Chdir(".git")
+func newGitParser(dir string) (*gitParser, error) {
+	_, err := os.Stat(filepath.Join(dir, ".git"))
 	if err != nil {
 		return nil, errors.New("Not a git repository")
 	}
 
-	g := new(GitParser)
-
-	g.dir = fq_dir
-	g.Type = Git
-
-	os.Chdir(fq_dir)
+	g := &gitParser{
+		dir: dir,
+	}
 
 	return g, nil
 }
 
-func (p *GitParser) Parse() RevisionInfo {
-	var rev RevisionInfo
-	rev.Extra = make(map[string]interface{})
+// Parse returns a RevisionInfo struct after parsing the provided directory for working copy information.
+func (p *gitParser) Parse() (Snapshot, error) {
+	version, _ := runCommand(p.dir, "git", "--version")
+	rawBranch, _ := runCommand(p.dir, "git", "branch", "--contains", "HEAD")
+	tagsJoined, _ := runCommand(p.dir, "git", "tag", "--contains", "HEAD")
+	metaJoined, _ := runCommand(p.dir, "git", "log", "-1", "--pretty=format:%h%n%h%n%H%n%ci%n%an%n%ae%n%p%n%P%n%s")
 
-	version, _ := runCommand("git", "--version", "")
+	useOldGitSyntax := !meetsVersion(version, "1.7.2")
+	rawCommitMessage := ""
+	if useOldGitSyntax {
+		rawCommitMessage, _ = runCommand(p.dir, "git", "log", "-1", "--pretty=format:%s%n%b")
+	} else {
+		rawCommitMessage, _ = runCommand(p.dir, "git", "log", "-1", "--pretty=format:%B")
+	}
+
+	workingCopyStats, _ := runCommand(p.dir, "git", "diff", "HEAD", "--stat")
+
+	rev := Snapshot{
+		Type:  "git",
+		Extra: make(map[string]interface{}),
+	}
+
 	version = strings.Replace(version, "git version ", "", -1)
 
-	// Need to make this smarter about parsing the active branch.
-	branch_raw, _ := runCommand("git", "branch --contains HEAD", "")
-	branch, all_branches := extractBranches(branch_raw)
+	currentBranch, allBranches := extractBranches(rawBranch)
 
-	tags_joined, _ := runCommand("git", "tag --contains HEAD", "")
-	tags_joined = strings.TrimSpace(tags_joined)
-	tags := make([]string, 0)
-	if len(tags_joined) > 0 {
-		tags = strings.Split(tags_joined, "\n")
+	tagsJoined = strings.TrimSpace(tagsJoined)
+	tags := []string{}
+	if len(tagsJoined) > 0 {
+		tags = strings.Split(tagsJoined, "\n")
 	}
 
-	meta_joined, _ := runCommand("git", "log -1 --pretty=format:%h%n%h%n%H%n%ci%n%an%n%ae%n%p%n%P%n%s", "")
-	meta := strings.Split(meta_joined, "\n")
+	meta := strings.Split(metaJoined, "\n")
 
-	use_old_git := !meetsVersion(version, "1.7.2")
-	commit_message_raw := ""
-	if use_old_git {
-		commit_message_raw, _ = runCommand("git", "log -1 --pretty=format:%s%n%b", "")
-	} else {
-		commit_message_raw, _ = runCommand("git", "log -1 --pretty=format:%B", "")
-	}
+	commitMessage := strings.TrimSpace(rawCommitMessage)
 
-	working_copy_status, _ := runCommand("git", "diff HEAD --stat", "")
-
-	commit_message := strings.TrimSpace(commit_message_raw)
-
-	rev.Type = Git
-	rev.Message = commit_message
+	rev.Type = "git"
+	rev.Message = commitMessage
 	rev.Tags = tags
-	rev.Branch = branch
-	rev.Extra["branches"] = all_branches
+	rev.Branch = currentBranch
+	rev.Extra["branches"] = allBranches
 
 	rev.Dec = meta[0]
 	rev.Hex = Hex{
@@ -85,62 +89,53 @@ func (p *GitParser) Parse() RevisionInfo {
 		Email: meta[5],
 	}
 
-	if commit_date, err := time.Parse("2006-01-02 15:04:05 -0700", meta[3]); err == nil {
-		rev.CommitDate = CommitDate(commit_date)
+	if date, err := time.Parse("2006-01-02 15:04:05 -0700", meta[3]); err == nil {
+		rev.CommitDate = CommitDate(date)
 	}
 
-	short_parents := strings.Split(strings.TrimSpace(meta[6]), " ")
-	long_parents := strings.Split(strings.TrimSpace(meta[7]), " ")
+	shortParents := strings.Split(strings.TrimSpace(meta[6]), " ")
+	longParents := strings.Split(strings.TrimSpace(meta[7]), " ")
 
 	subject := strings.TrimSpace(meta[8])
 
-	parents := make([]map[string]interface{}, 0)
-	var parent map[string]interface{}
-	for i, _ := range short_parents {
-		parent = make(map[string]interface{})
-		parent["short"] = short_parents[i]
-		parent["full"] = long_parents[i]
+	parents := []map[string]interface{}{}
+	for i := range shortParents {
+		parent := make(map[string]interface{})
+		parent["short"] = shortParents[i]
+		parent["full"] = longParents[i]
 		parents = append(parents, parent)
 	}
 
 	rev.Extra["parents"] = parents
 	rev.Extra["subject"] = subject
 
-	rev.WorkingCopy = parseDiffStat(working_copy_status)
+	rev.UncommittedChanges = parseDiffStat(workingCopyStats)
 
-	return rev
+	return rev, nil
 
 }
 
-func (p *GitParser) Setup() {
-	executable := flag.Lookup("executable").Value.String()
-	out := flag.Lookup("out").Value.String()
+func (p *gitParser) InstallHooks(config HooksConfig) error {
 
-	if out == "<STDOUT>" {
-		out = "REVISION.json"
-	}
+	buf := &bytes.Buffer{}
+	gitHookTmpl.Execute(buf, config)
+	hook := buf.String()
 
-	hook := executable + " -out=\"" + out + "\"; # scm-status hook\r\n"
-
-	hook_dir := strings.Join([]string{p.Dir(), ".git", "hooks"}, path_separator)
+	hookDir := filepath.Join(p.dir, ".git", "hooks")
 
 	filenames := []string{
-		hook_dir + path_separator + "post-checkout",
-		hook_dir + path_separator + "post-merge",
-		hook_dir + path_separator + "post-commit",
+		filepath.Join(hookDir, "post-checkout"),
+		filepath.Join(hookDir, "post-merge"),
+		filepath.Join(hookDir, "post-commit"),
 	}
 
 	for _, filename := range filenames {
 		fp, _ := os.OpenFile(filename, os.O_RDWR+os.O_APPEND+os.O_CREATE, 0775)
-
-		_, _ = fp.WriteString(hook)
-
+		fp.WriteString(hook)
 		fp.Close()
 	}
-}
 
-func (p *GitParser) Dir() string {
-	return p.dir
+	return nil
 }
 
 func meetsVersion(test, req string) bool {
@@ -171,41 +166,75 @@ func meetsVersion(test, req string) bool {
 
 	// compare each line and see where we are
 	series := make([]int, len(reqVersion))
-	last_pos, last_neg := -1, -1 // last_neut := -1, -1, -1
+	lastPos, lastNeg := -1, -1
 
 	for i, j := len(reqVersion)-1, len(reqVersion)-1; i >= 0; i, j = i-1, j-1 {
 		if testVersion[i] > reqVersion[i] {
 			series[j] = 1
-			last_pos = j
+			lastPos = j
 		} else if testVersion[i] < reqVersion[i] {
 			series[j] = -1
-			last_neg = j
+			lastNeg = j
 		} else {
 			series[j] = 0
-			// last_neut = j
 		}
 	}
 
-	valid_version := (last_pos < last_neg && last_pos >= 0) || (last_pos == -1 && last_neg == -1)
-
-	return valid_version
+	return (lastPos < lastNeg && lastPos >= 0) || (lastPos == -1 && lastNeg == -1)
 }
 
-func extractBranches(branch_raw string) (primary_branch string, all_branches []string) {
-	branch_raw = strings.Replace(branch_raw, "\r\n", "\n", -1)
-	temp := strings.Split(branch_raw, "\n")
+func extractBranches(rawBranch string) (primary string, all []string) {
+	rawBranch = strings.Replace(rawBranch, "\r\n", "\n", -1)
+	temp := strings.Split(rawBranch, "\n")
 	for _, b := range temp {
 		b = strings.TrimSpace(b)
 
 		if strings.HasPrefix(b, "* ") {
 			b = strings.Replace(b, "* ", "", -1)
-			primary_branch = b
+			primary = b
 		}
 
 		if len(b) > 0 {
-			all_branches = append(all_branches, b)
+			all = append(all, b)
 		}
 	}
 
 	return
+}
+
+func parseDiffStat(in string) UncommittedChanges {
+	in = strings.Replace(in, "\r\n", "\n", -1)
+	lines := strings.Split(in, "\n")
+
+	uc := UncommittedChanges{
+		Files: []UncommittedFile{},
+	}
+
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+
+		if len(line) == 0 {
+			continue
+		} else if gitFileDiffRegexp.MatchString(line) {
+			match := gitFileDiffRegexp.FindAllStringSubmatch(line, -1)
+
+			changes, _ := strconv.ParseInt(match[0][2], 10, 32)
+
+			uc.Files = append(uc.Files, UncommittedFile{
+				Name:    match[0][1],
+				Changes: int(changes),
+			})
+
+		} else if gitSummaryDiffRegexp.MatchString(line) {
+			match := gitSummaryDiffRegexp.FindAllStringSubmatch(line, -1)
+
+			additions, _ := strconv.ParseInt(match[0][2], 10, 32)
+			deletions, _ := strconv.ParseInt(match[0][3], 10, 32)
+
+			uc.Added = int(additions)
+			uc.Deleted = int(deletions)
+		}
+	}
+
+	return uc
 }
