@@ -53,7 +53,7 @@ func (g *gitParser) Parse() (Snapshot, error) {
 	tagsJoined, _ := runCommand(g.dir, "git", "tag", "--contains", "HEAD")
 	metaJoined, _ := runCommand(g.dir, "git", "log", "-1", "--pretty=format:%h%n%h%n%H%n%ci%n%an%n%ae%n%p%n%P%n%s")
 
-	useOldGitSyntax := !meetsVersion(version, "1.7.2")
+	useOldGitSyntax := versionNumber(version).meets(versionNumber("1.7.2"))
 	rawCommitMessage := ""
 	if useOldGitSyntax {
 		rawCommitMessage, _ = runCommand(g.dir, "git", "log", "-1", "--pretty=format:%s%n%b")
@@ -139,51 +139,6 @@ func (g *gitParser) InstallHooks(config HooksConfig) error {
 	}
 
 	return nil
-}
-
-func meetsVersion(test, req string) bool {
-
-	intConvert := func(a []string) []int {
-		b := make([]int, len(a))
-
-		for i, v := range a {
-			b[i], _ = strconv.Atoi(v)
-		}
-
-		return b
-	}
-
-	testVersion := intConvert(strings.Split(strings.TrimSpace(test), "."))
-	reqVersion := intConvert(strings.Split(strings.TrimSpace(req), "."))
-
-	// make both versions same length for easier comparison
-	if len(testVersion) > len(reqVersion) {
-		for i := len(reqVersion); i < len(testVersion); i++ {
-			reqVersion = append(reqVersion, 0)
-		}
-	} else if len(reqVersion) > len(testVersion) {
-		for i := len(testVersion); i < len(reqVersion); i++ {
-			testVersion = append(testVersion, 0)
-		}
-	}
-
-	// compare each line and see where we are
-	series := make([]int, len(reqVersion))
-	lastPos, lastNeg := -1, -1
-
-	for i, j := len(reqVersion)-1, len(reqVersion)-1; i >= 0; i, j = i-1, j-1 {
-		if testVersion[i] > reqVersion[i] {
-			series[j] = 1
-			lastPos = j
-		} else if testVersion[i] < reqVersion[i] {
-			series[j] = -1
-			lastNeg = j
-		} else {
-			series[j] = 0
-		}
-	}
-
-	return (lastPos < lastNeg && lastPos >= 0) || (lastPos == -1 && lastNeg == -1)
 }
 
 func extractBranches(rawBranch string) (primary string, all []string) {
