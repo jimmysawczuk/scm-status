@@ -1,8 +1,9 @@
 package scm
 
 import (
+	"github.com/pkg/errors"
+
 	"bytes"
-	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -18,28 +19,31 @@ type hgParser struct {
 	dir string
 }
 
-func newHgParser(dir string) (*hgParser, error) {
+func (hg *hgParser) Build(dir string) error {
 	_, err := os.Stat(filepath.Join(dir, ".hg"))
 	if err != nil {
-		return nil, errors.New("Not an hg repository")
+		switch errors.Cause(err).(type) {
+		case *os.PathError:
+			return errNotRepository
+		default:
+			return errors.Wrap(err, "access .hg directory")
+		}
 	}
 
-	h := &hgParser{
-		dir: dir,
-	}
+	hg.dir = dir
 
-	return h, nil
+	return nil
 }
 
-func (p *hgParser) Parse() (Snapshot, error) {
+func (hg *hgParser) Parse() (Snapshot, error) {
 	rev := Snapshot{
 		Type: "hg",
 	}
 
-	rawInfo, _ := runCommand(p.dir, "hg", "log", "-r", ".", "--template", "{rev}\\n{node|short}\\n{node}\\n{date|rfc822date}\\n"+"{branches}\\n{tags}\\n{author|person}\\n{author|email}")
+	rawInfo, _ := runCommand(hg.dir, "hg", "log", "-r", ".", "--template", "{rev}\\n{node|short}\\n{node}\\n{date|rfc822date}\\n"+"{branches}\\n{tags}\\n{author|person}\\n{author|email}")
 	info := strings.Split(rawInfo, "\n")
 
-	message, _ := runCommand(p.dir, "hg", "log", "-r", ".", "--template", "{desc}")
+	message, _ := runCommand(hg.dir, "hg", "log", "-r", ".", "--template", "{desc}")
 
 	rev.Dec = info[0]
 	rev.Hex = Hex{
@@ -70,7 +74,7 @@ func (p *hgParser) Parse() (Snapshot, error) {
 
 }
 
-func (p *hgParser) InstallHooks(config HooksConfig) error {
+func (hg *hgParser) InstallHooks(config HooksConfig) error {
 
 	buf := &bytes.Buffer{}
 	hgHookTmpl.Execute(buf, config)
@@ -80,7 +84,7 @@ func (p *hgParser) InstallHooks(config HooksConfig) error {
 	fullHooks += "post-update = " + hook + "\r\n"
 	fullHooks += "post-commit = " + hook + "\r\n"
 
-	filename := filepath.Join(p.dir, ".hg", "hgrc")
+	filename := filepath.Join(hg.dir, ".hg", "hgrc")
 	fp, _ := os.OpenFile(filename, os.O_RDWR+os.O_APPEND+os.O_CREATE, 0664)
 	_, _ = fp.WriteString(fullHooks)
 	fp.Close()

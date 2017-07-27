@@ -23,42 +23,45 @@ type gitParser struct {
 	dir string
 }
 
-func newGitParser(dir string) (*gitParser, error) {
+func (g *gitParser) Build(dir string) error {
 	_, err := os.Stat(filepath.Join(dir, ".git"))
 	if err != nil {
-		return nil, errors.New("Not a git repository")
+		switch errors.Cause(err).(type) {
+		case *os.PathError:
+			return errNotRepository
+		default:
+			return errors.Wrap(err, "access .git directory")
+		}
 	}
 
-	g := &gitParser{
-		dir: dir,
-	}
+	g.dir = dir
 
-	return g, nil
+	return nil
 }
 
 // Parse returns a RevisionInfo struct after parsing the provided directory for working copy information.
-func (p *gitParser) Parse() (Snapshot, error) {
-	version, _ := runCommand(p.dir, "git", "--version")
-	version = strings.Replace(version, "git version ", "", -1)
-
-	rawBranch, _ := runCommand(p.dir, "git", "branch", "--contains", "HEAD")
-	tagsJoined, _ := runCommand(p.dir, "git", "tag", "--contains", "HEAD")
-	metaJoined, _ := runCommand(p.dir, "git", "log", "-1", "--pretty=format:%h%n%h%n%H%n%ci%n%an%n%ae%n%p%n%P%n%s")
-
-	useOldGitSyntax := !meetsVersion(version, "1.7.2")
-	rawCommitMessage := ""
-	if useOldGitSyntax {
-		rawCommitMessage, _ = runCommand(p.dir, "git", "log", "-1", "--pretty=format:%s%n%b")
-	} else {
-		rawCommitMessage, _ = runCommand(p.dir, "git", "log", "-1", "--pretty=format:%B")
-	}
-
-	workingCopyStats, _ := runCommand(p.dir, "git", "diff", "HEAD", "--stat")
-
+func (g *gitParser) Parse() (Snapshot, error) {
 	rev := Snapshot{
 		Type:  "git",
 		Extra: make(map[string]interface{}),
 	}
+
+	version, _ := runCommand(g.dir, "git", "--version")
+	version = strings.Replace(version, "git version ", "", -1)
+
+	rawBranch, _ := runCommand(g.dir, "git", "branch", "--contains", "HEAD")
+	tagsJoined, _ := runCommand(g.dir, "git", "tag", "--contains", "HEAD")
+	metaJoined, _ := runCommand(g.dir, "git", "log", "-1", "--pretty=format:%h%n%h%n%H%n%ci%n%an%n%ae%n%p%n%P%n%s")
+
+	useOldGitSyntax := !meetsVersion(version, "1.7.2")
+	rawCommitMessage := ""
+	if useOldGitSyntax {
+		rawCommitMessage, _ = runCommand(g.dir, "git", "log", "-1", "--pretty=format:%s%n%b")
+	} else {
+		rawCommitMessage, _ = runCommand(g.dir, "git", "log", "-1", "--pretty=format:%B")
+	}
+
+	workingCopyStats, _ := runCommand(g.dir, "git", "diff", "HEAD", "--stat")
 
 	currentBranch, allBranches := extractBranches(rawBranch)
 
@@ -115,13 +118,13 @@ func (p *gitParser) Parse() (Snapshot, error) {
 
 }
 
-func (p *gitParser) InstallHooks(config HooksConfig) error {
+func (g *gitParser) InstallHooks(config HooksConfig) error {
 
 	buf := &bytes.Buffer{}
 	gitHookTmpl.Execute(buf, config)
 	hook := buf.String()
 
-	hookDir := filepath.Join(p.dir, ".git", "hooks")
+	hookDir := filepath.Join(g.dir, ".git", "hooks")
 
 	filenames := []string{
 		filepath.Join(hookDir, "post-checkout"),

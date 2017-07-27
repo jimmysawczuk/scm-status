@@ -11,6 +11,7 @@ import (
 
 // Parser is the interface that's used to query the current working directory for revision info. Currently git and hg are implemented.
 type Parser interface {
+	Build(string) error
 	Parse() (Snapshot, error)
 	InstallHooks(HooksConfig) error
 }
@@ -79,29 +80,35 @@ func ParseAndWrite(scm Parser, config OutputConfig) error {
 
 // GetParser returns a new ScmParser that's suited to read the status from the passed directory.
 func GetParser(dir string) (Parser, error) {
-
 	dir, err := resolveDir(dir)
 	if err != nil {
-		return nil, nil
+		return nil, errors.Wrapf(err, "resolve directory")
 	}
 
-	g, err := newGitParser(dir)
-	if g != nil {
-		return g, nil
+	parsers := []Parser{
+		&gitParser{},
+		&hgParser{},
 	}
 
-	h, err := newHgParser(dir)
-	if h != nil {
-		return h, nil
+	for _, parser := range parsers {
+		if err := parser.Build(dir); err != nil {
+			switch errors.Cause(err) {
+			case errNotRepository:
+				continue
+			default:
+				return nil, errors.Wrapf(err, "build parser (%T)", parser)
+			}
+		}
+		return parser, nil
 	}
 
-	return nil, errors.New("can't determine repository type")
+	return nil, errors.New("couldn't find a valid repository")
 }
 
 func resolveDir(dir string) (string, error) {
 	absDir, err := filepath.Abs(dir)
 	if err != nil {
-		return "", errors.Wrapf(err, "can't access directory (need execute permissions): %s", dir)
+		return "", errInvalidDirectory
 	}
 
 	return absDir, nil
