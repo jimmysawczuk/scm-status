@@ -52,7 +52,7 @@ func (hg *hgParser) Parse() (Snapshot, error) {
 	}
 
 	if date, err := time.Parse("Mon, 02 Jan 2006 15:04:05 -0700", info[3]); err == nil {
-		rev.CommitDate = CommitDate(date)
+		rev.Date = date
 	}
 
 	rev.Author = Author{

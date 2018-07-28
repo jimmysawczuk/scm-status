@@ -24,7 +24,7 @@ type Snapshot struct {
 	Author Author `json:"author"`
 
 	// The date and time of the commit
-	CommitDate CommitDate `json:"commit_date"`
+	Date time.Time `json:"date"`
 
 	// The commit message.
 	Message string `json:"message"`
@@ -53,9 +53,6 @@ type Author struct {
 	Email string `json:"email"`
 	Name  string `json:"name"`
 }
-
-// CommitDate holds the date/time of a commit
-type CommitDate time.Time
 
 // UncommittedChanges contains information about the current uncommitted changes
 type UncommittedChanges struct {
@@ -100,11 +97,4 @@ func (ri Snapshot) WriteToStdout(pretty bool) {
 	json, _ := ri.ToJSON(pretty)
 
 	fmt.Println(bytes.NewBuffer(json).String())
-}
-
-// MarshalJSON implements JSONMarshaler for CommitDate, which formats the commit date in several ways
-func (d CommitDate) MarshalJSON() ([]byte, error) {
-	t := time.Time(d)
-	str := fmt.Sprintf(`{"date":%q,"timestamp":%d,"iso8601":%q}`, t.Format(time.UnixDate), t.Unix(), t.Format("2006-01-02T15:04:05-07:00"))
-	return bytes.NewBufferString(str).Bytes(), nil
 }

@@ -72,6 +72,9 @@ func (g *gitParser) Parse() (Snapshot, error) {
 	}
 
 	meta := strings.Split(metaJoined, "\n")
+	if len(meta) < 9 {
+		return Snapshot{}, errors.New("blank repository; no commits")
+	}
 
 	commitMessage := strings.TrimSpace(rawCommitMessage)
 
@@ -93,7 +96,7 @@ func (g *gitParser) Parse() (Snapshot, error) {
 	}
 
 	if date, err := time.Parse("2006-01-02 15:04:05 -0700", meta[3]); err == nil {
-		rev.CommitDate = CommitDate(date)
+		rev.Date = date
 	}
 
 	shortParents := strings.Split(strings.TrimSpace(meta[6]), " ")
