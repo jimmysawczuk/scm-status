@@ -13,7 +13,7 @@ jobs:
         fetch-depth: '0'
     - name: Get tag
       id: tag
-      uses: jimmysawczuk/get-tag-from-ref@master
+      uses: jimmysawczuk/actions/github/get-tag-from-ref@master
       with:
         ref: ${{ github.ref }}
     - name: Build
