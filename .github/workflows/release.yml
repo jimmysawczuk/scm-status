@@ -1,8 +1,7 @@
 name: Release new version
 on:
-  push:
-    tags:
-      - v*
+  release:
+    types: [created]
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -24,21 +23,12 @@ jobs:
         CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -a -o "scm-status-${{ steps.tag.outputs.tag }}-linux-amd64" -ldflags "-s -w $(cat /tmp/buildtags)" -mod=vendor .
         CGO_ENABLED=0 GOOS=linux GOARCH=386 go build -a -o "scm-status-${{ steps.tag.outputs.tag }}-linux-386" -ldflags "-s -w $(cat /tmp/buildtags)" -mod=vendor .
         CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -a -o "scm-status-${{ steps.tag.outputs.tag }}-darwin-amd64" -ldflags "-s -w $(cat /tmp/buildtags)" -mod=vendor .
-    - name: Create release
-      id: create_release
-      uses: actions/create-release@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        tag_name: ${{ github.ref }}
-        release_name: ${{ steps.tag.outputs.tag }}
-        draft: true
     - name: Upload build (linux, amd64)
       uses: actions/upload-release-asset@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        upload_url: ${{ github.event.release.upload_url }}
         asset_path: ./scm-status-${{ steps.tag.outputs.tag }}-linux-amd64
         asset_name: scm-status-${{ steps.tag.outputs.tag }}-linux-amd64
         asset_content_type: application/octet-stream
@@ -47,7 +37,7 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        upload_url: ${{ github.event.release.upload_url }}
         asset_path: ./scm-status-${{ steps.tag.outputs.tag }}-linux-386
         asset_name: scm-status-${{ steps.tag.outputs.tag }}-linux-386
         asset_content_type: application/octet-stream
@@ -56,7 +46,7 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        upload_url: ${{ github.event.release.upload_url }}
         asset_path: ./scm-status-${{ steps.tag.outputs.tag }}-darwin-amd64
         asset_name: scm-status-${{ steps.tag.outputs.tag }}-darwin-amd64
         asset_content_type: application/octet-stream
