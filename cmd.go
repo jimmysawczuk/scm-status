@@ -1,29 +1,32 @@
 package main
 
 import (
-	"time"
-
-	"github.com/jimmysawczuk/scm-status/scm"
-	"github.com/pkg/errors"
-
 	"flag"
 	"fmt"
 	"os"
 	"path"
+	"time"
+
+	"github.com/jimmysawczuk/scm-status/scm"
+	"github.com/pkg/errors"
 )
 
-var version string
-var revision string = "dev"
-var date string = time.Now().Format(time.RFC3339)
+var (
+	version  string
+	revision string = "dev"
+	date     string = time.Now().Format(time.RFC3339)
+)
 
-var out = flag.String("out", "", "File in which to (over)write the revision info into (defaults to stdout)")
-var executable = flag.String("executable", "", "Path to this executable (used for hooks; default: $GOPATH/bin/scm-status)")
-var pretty = flag.Bool("pretty", true, "Indent and format output")
-var installHooks = flag.Bool("install-hooks", false, "Install hooks")
+var (
+	out          = flag.String("out", "", "File in which to (over)write the revision info into (defaults to stdout)")
+	executable   = flag.String("executable", "", "Path to this executable (used for hooks; default: $GOPATH/bin/scm-status)")
+	pretty       = flag.Bool("pretty", true, "Indent and format output")
+	installHooks = flag.Bool("install-hooks", false, "Install hooks")
+)
 
 func init() {
 	flag.Usage = func() {
-		fmt.Fprintf(os.Stderr, "%s v%s\nUsage:\n", path.Base(os.Args[0]), version)
+		fmt.Fprintf(os.Stderr, "%s %s\nUsage:\n", path.Base(os.Args[0]), version)
 		flag.PrintDefaults()
 	}
 }
