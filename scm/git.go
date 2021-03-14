@@ -1,22 +1,19 @@
 package scm
 
 import (
-	"github.com/pkg/errors"
-
-	"bytes"
 	"os"
 	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
-	"text/template"
 	"time"
+
+	"github.com/pkg/errors"
 )
 
-var gitFileDiffRegexp = regexp.MustCompile(`^(.+?)\s+\|\s+(\d+) [\+|\-]*$`)
-var gitSummaryDiffRegexp = regexp.MustCompile(`^(?:(\d+) files? changed)?(?:, )?(?:(\d+) insertions?\(\+\))?(?:, )?(?:(\d+) deletions?\(\-\))?$`)
-var gitHookTmpl = template.Must(
-	template.New("githooks").Parse(`{{ .ExecutablePath }} {{ with .OutputConfig.Filename }}{{ printf "-out=%q" . }}{{ end }} {{ with .OutputConfig.Pretty }}{{ printf "-pretty=%t" . }}{{ end }}; # installed by scm-status (github.com/jimmysawczuk/scm-status)`),
+var (
+	gitFileDiffRegexp    = regexp.MustCompile(`^(.+?)\s+\|\s+(\d+) [\+|\-]*$`)
+	gitSummaryDiffRegexp = regexp.MustCompile(`^(?:(\d+) files? changed)?(?:, )?(?:(\d+) insertions?\(\+\))?(?:, )?(?:(\d+) deletions?\(\-\))?$`)
 )
 
 type gitParser struct {
@@ -28,7 +25,7 @@ func (g *gitParser) Build(dir string) error {
 	if err != nil {
 		switch errors.Cause(err).(type) {
 		case *os.PathError:
-			return errNotRepository
+			return ErrNotRepository
 		default:
 			return errors.Wrap(err, "access .git directory")
 		}
@@ -118,30 +115,6 @@ func (g *gitParser) Parse() (Snapshot, error) {
 	rev.UncommittedChanges = parseDiffStat(workingCopyStats)
 
 	return rev, nil
-
-}
-
-func (g *gitParser) InstallHooks(config HooksConfig) error {
-
-	buf := &bytes.Buffer{}
-	gitHookTmpl.Execute(buf, config)
-	hook := buf.String()
-
-	hookDir := filepath.Join(g.dir, ".git", "hooks")
-
-	filenames := []string{
-		filepath.Join(hookDir, "post-checkout"),
-		filepath.Join(hookDir, "post-merge"),
-		filepath.Join(hookDir, "post-commit"),
-	}
-
-	for _, filename := range filenames {
-		fp, _ := os.OpenFile(filename, os.O_RDWR+os.O_APPEND+os.O_CREATE, 0775)
-		fp.WriteString(hook)
-		fp.Close()
-	}
-
-	return nil
 }
 
 func extractBranches(rawBranch string) (primary string, all []string) {

@@ -4,5 +4,7 @@ import (
 	"errors"
 )
 
-var errNotRepository = errors.New("Not a repository")
-var errInvalidDirectory = errors.New("Invalid directory")
+var (
+	ErrNotRepository    = errors.New("not a repository")
+	ErrInvalidDirectory = errors.New("invalid directory")
+)

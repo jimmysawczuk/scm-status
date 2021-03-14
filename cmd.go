@@ -18,10 +18,8 @@ var (
 )
 
 var (
-	out          = flag.String("out", "", "File in which to (over)write the revision info into (defaults to stdout)")
-	executable   = flag.String("executable", "", "Path to this executable (used for hooks; default: $GOPATH/bin/scm-status)")
-	pretty       = flag.Bool("pretty", true, "Indent and format output")
-	installHooks = flag.Bool("install-hooks", false, "Install hooks")
+	out    = flag.String("out", "", "File in which to (over)write the revision info into (defaults to stdout)")
+	pretty = flag.Bool("pretty", true, "Indent and format output")
 )
 
 func init() {
@@ -40,19 +38,10 @@ func main() {
 		dir = args[0]
 	}
 
-	if *installHooks {
-		err := setup(dir)
-		if err != nil {
-			fmt.Fprintln(os.Stderr, err)
-		}
-		return
-	}
-
 	err := getRevision(dir)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 	}
-	return
 }
 
 func getRevision(dir string) error {
@@ -67,26 +56,6 @@ func getRevision(dir string) error {
 	})
 	if err != nil {
 		return errors.Wrapf(err, "get revision (directory: %s)", dir)
-	}
-
-	return nil
-}
-
-func setup(dir string) error {
-	parser, err := scm.GetParser(dir)
-	if err != nil {
-		return errors.Wrapf(err, "install hooks (directory: %s)", dir)
-	}
-
-	err = scm.InstallHooks(parser, scm.HooksConfig{
-		ExecutablePath: *executable,
-		OutputConfig: scm.OutputConfig{
-			Filename: *out,
-			Pretty:   *pretty,
-		},
-	})
-	if err != nil {
-		return errors.Wrapf(err, "install hooks")
 	}
 
 	return nil

@@ -1,25 +1,18 @@
 package scm
 
 import (
-	"github.com/pkg/errors"
-
-	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
+
+	"github.com/pkg/errors"
 )
 
 // Parser is the interface that's used to query the current working directory for revision info. Currently git and hg are implemented.
 type Parser interface {
 	Build(string) error
 	Parse() (Snapshot, error)
-	InstallHooks(HooksConfig) error
-}
-
-// HooksConfig holds configuration information for how hooks should be installed in a working copy to generate snapshots automatically.
-type HooksConfig struct {
-	OutputConfig
-	ExecutablePath string
+	// InstallHooks(HooksConfig) error
 }
 
 // OutputConfig holds configuration information for how a working copy snapshot should be output.
@@ -28,38 +21,11 @@ type OutputConfig struct {
 	Pretty   bool
 }
 
-// InstallHooks uses the provided ScmParser and installs hooks as specified in config.
-func InstallHooks(scm Parser, config HooksConfig) error {
-	executable := filepath.Join(os.Getenv("GOPATH"), "bin/scm-status")
-	if config.ExecutablePath != "" {
-		executable, _ = filepath.Abs(config.ExecutablePath)
-	}
-
-	filename := ""
-	if config.OutputConfig.Filename != "" {
-		filename = config.OutputConfig.Filename
-	}
-
-	pretty := config.OutputConfig.Pretty
-
-	err := scm.InstallHooks(HooksConfig{
-		ExecutablePath: executable,
-		OutputConfig: OutputConfig{
-			Filename: filename,
-			Pretty:   pretty,
-		},
-	})
-	if err != nil {
-		return errors.Wrapf(err, "install hooks")
-	}
-	return nil
-}
-
 // ParseAndWrite uses the provided ScmParser to get a snapshot and outputs it as specified in config.
 func ParseAndWrite(scm Parser, config OutputConfig) error {
 	result, err := scm.Parse()
 	if err != nil {
-		return errors.Wrap(err, "parseandwrite")
+		return errors.Wrap(err, "scm: parse")
 	}
 
 	filename := ""
@@ -93,7 +59,7 @@ func GetParser(dir string) (Parser, error) {
 	for _, parser := range parsers {
 		if err := parser.Build(dir); err != nil {
 			switch errors.Cause(err) {
-			case errNotRepository:
+			case ErrNotRepository:
 				continue
 			default:
 				return nil, errors.Wrapf(err, "build parser (%T)", parser)
@@ -108,7 +74,7 @@ func GetParser(dir string) (Parser, error) {
 func resolveDir(dir string) (string, error) {
 	absDir, err := filepath.Abs(dir)
 	if err != nil {
-		return "", errInvalidDirectory
+		return "", ErrInvalidDirectory
 	}
 
 	return absDir, nil

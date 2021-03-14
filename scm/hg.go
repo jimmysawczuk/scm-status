@@ -1,18 +1,12 @@
 package scm
 
 import (
-	"github.com/pkg/errors"
-
-	"bytes"
 	"os"
 	"path/filepath"
 	"strings"
-	"text/template"
 	"time"
-)
 
-var hgHookTmpl = template.Must(
-	template.New("hghooks").Parse(`{{ .ExecutablePath }} {{ with .OutputConfig.Filename }}{{ printf "-out=%q" . }}{{ end }} {{ with .OutputConfig.Pretty }}{{ printf "-pretty=%t" . }}{{ end }}; # installed by scm-status (github.com/jimmysawczuk/scm-status)`),
+	"github.com/pkg/errors"
 )
 
 type hgParser struct {
@@ -24,7 +18,7 @@ func (hg *hgParser) Build(dir string) error {
 	if err != nil {
 		switch errors.Cause(err).(type) {
 		case *os.PathError:
-			return errNotRepository
+			return ErrNotRepository
 		default:
 			return errors.Wrap(err, "access .hg directory")
 		}
@@ -71,23 +65,4 @@ func (hg *hgParser) Parse() (Snapshot, error) {
 	rev.Tags = strings.Split(info[5], " ")
 
 	return rev, nil
-
-}
-
-func (hg *hgParser) InstallHooks(config HooksConfig) error {
-
-	buf := &bytes.Buffer{}
-	hgHookTmpl.Execute(buf, config)
-	hook := buf.String()
-
-	fullHooks := "\r\n\r\n" + "[hooks]\r\n"
-	fullHooks += "post-update = " + hook + "\r\n"
-	fullHooks += "post-commit = " + hook + "\r\n"
-
-	filename := filepath.Join(hg.dir, ".hg", "hgrc")
-	fp, _ := os.OpenFile(filename, os.O_RDWR+os.O_APPEND+os.O_CREATE, 0664)
-	_, _ = fp.WriteString(fullHooks)
-	fp.Close()
-
-	return nil
 }

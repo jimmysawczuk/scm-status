@@ -89,7 +89,6 @@ func (ri Snapshot) Write(filepath string, pretty bool) error {
 	fp.Write(json)
 	fp.Close()
 	return nil
-
 }
 
 // WriteToStdout writes a snapshot's JSON representation to stdout
