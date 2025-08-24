@@ -4,12 +4,25 @@ on:
     types: [created]
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.arch.os }}
+    strategy:
+      matrix:
+        arch:
+          - os: macos-latest
+            arch: darwin-amd64
+          - os: ubuntu-latest
+            arch: linux-amd64
+          - os: ubuntu-latest
+            arch: linux-arm64
     steps:
       - name: Checkout
-        uses: actions/checkout@master
+        uses: actions/checkout@v4
         with:
           fetch-depth: "0"
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "^1.25"
       - name: Get tag
         id: tag
         uses: jimmysawczuk/actions/github/get-tag-from-ref@main
@@ -20,33 +33,13 @@ jobs:
           echo "-X main.version=${{ steps.tag.outputs.tag }} -X main.revision=$GITHUB_SHA -X main.date=$(date --iso-8601=seconds)" > /tmp/buildtags
           cat /tmp/buildtags
 
-          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -a -o "scm-status-${{ steps.tag.outputs.tag }}-linux-amd64" -ldflags "-s -w $(cat /tmp/buildtags)" -mod=vendor .
-          CGO_ENABLED=0 GOOS=linux GOARCH=386 go build -a -o "scm-status-${{ steps.tag.outputs.tag }}-linux-386" -ldflags "-s -w $(cat /tmp/buildtags)" -mod=vendor .
-          CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -a -o "scm-status-${{ steps.tag.outputs.tag }}-darwin-amd64" -ldflags "-s -w $(cat /tmp/buildtags)" -mod=vendor .
-      - name: Upload build (linux, amd64)
+          CGO_ENABLED=0 go build -a -o "scm-status-${{ steps.tag.outputs.tag }}-${{ matrix.arch.arch }}" -ldflags "-s -w $(cat /tmp/buildtags)" -mod=vendor .
+      - name: Upload build
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ github.event.release.upload_url }}
-          asset_path: ./scm-status-${{ steps.tag.outputs.tag }}-linux-amd64
-          asset_name: scm-status-${{ steps.tag.outputs.tag }}-linux-amd64
-          asset_content_type: application/octet-stream
-      - name: Upload build (linux, 386)
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ github.event.release.upload_url }}
-          asset_path: ./scm-status-${{ steps.tag.outputs.tag }}-linux-386
-          asset_name: scm-status-${{ steps.tag.outputs.tag }}-linux-386
-          asset_content_type: application/octet-stream
-      - name: Upload build (darwin, amd64)
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ github.event.release.upload_url }}
-          asset_path: ./scm-status-${{ steps.tag.outputs.tag }}-darwin-amd64
-          asset_name: scm-status-${{ steps.tag.outputs.tag }}-darwin-amd64
+          asset_path: ./scm-status-${{ steps.tag.outputs.tag }}-${{ matrix.arch.arch}}
+          asset_name: scm-status-${{ steps.tag.outputs.tag }}-${{ matrix.arch.arch}}
           asset_content_type: application/octet-stream
